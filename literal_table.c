@@ -129,11 +129,6 @@ void literal_table_start_iteration()
     iteration_next = first;
 }
 
-void literal_table_end_iteration()
-{
-    iterating = false;
-}
-
 bool literal_table_iteration_has_next()
 {
     literal_table_okay();
@@ -151,4 +146,9 @@ word_type literal_table_iteration_next()
     float ret = iteration_next->value;
     iteration_next = iteration_next->next;
     return ret;
+}
+
+void literal_table_end_iteration()
+{
+    iterating = false;
 }
