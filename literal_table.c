@@ -5,7 +5,7 @@
 #include "literal_table.h"
 #include "utilities.h"
 
-
+// *** literal table ***
 typedef struct literal_table_entry_s 
 {
     struct literal_table_entry_s *next;
@@ -18,55 +18,32 @@ static literal_table_entry_t *first;
 static literal_table_entry_t *last;
 static unsigned int next_word_offset;
 
+// *** iteration state *** 
 static bool iterating;
 static literal_table_entry_t *iteration_next;
-
-
-unsigned int literal_table_size()
-{
-    return next_word_offset;
-}
-
-bool literal_table_empty()
-{
-    return next_word_offset == 0;
-}
-
-bool literal_table_full()
-{
-    return false;
-}
 
 void literal_table_initialize()
 {
     first = NULL;
     last = NULL;
     next_word_offset = 0;
-    literal_table_okay();
+    literal_table_okay(); // check invariant
     iterating = false;
     iteration_next = NULL;
-    literal_table_okay();
+    literal_table_okay(); // check again
 }
 
-int literal_table_find_offset(const char *sought, word_type value)
+static void literal_table_okay()
 {
-    literal_table_okay();
-    literal_table_entry_t *entry = first;
-    while (entry != NULL) 
-    {
-	    if (strcmp(entry->text, sought) == 0) 
-        {
-	        return entry->offset;
-	    }
-	    entry = entry->next;
-    }
-    return -1;
+    bool emp = literal_table_empty();
+    assert(emp == (next_word_offset == 0));
+    assert(emp == (first == NULL));
+    assert(emp == (last == NULL));
 }
 
-bool literal_table_present(const char *sought, word_type value)
+bool literal_table_empty()
 {
-    literal_table_okay();
-    return literal_table_find_offset(sought, value) >= 0;    
+    return next_word_offset == 0;
 }
 
 unsigned int literal_table_lookup(const char *val_string, word_type value)
@@ -92,17 +69,54 @@ unsigned int literal_table_lookup(const char *val_string, word_type value)
     }
     if (first == NULL) 
     {
+        // initialize new entry
 	    first = new_entry;
 	    last = new_entry;
     } 
     else 
     {
+        // append new entry
 	    last->next = new_entry;
 	    last = new_entry;
     }
     literal_table_okay();
     return ret; 
 }
+
+bool literal_table_present(const char *sought, word_type value)
+{
+    literal_table_okay();
+    return literal_table_find_offset(sought, value) >= 0;    
+}
+
+int literal_table_find_offset(const char *sought, word_type value)
+{
+    literal_table_okay();
+    literal_table_entry_t *entry = first;
+    while (entry != NULL) 
+    {
+	    if (strcmp(entry->text, sought) == 0) 
+        {
+	        return entry->offset;
+	    }
+	    entry = entry->next;
+    }
+    return -1;
+}
+
+// *** unused helper functions ***
+
+unsigned int literal_table_size()
+{
+    return next_word_offset;
+}
+
+bool literal_table_full()
+{
+    return false;
+}
+
+// *** iteration state ***
 
 void literal_table_start_iteration()
 {
@@ -126,14 +140,14 @@ bool literal_table_iteration_has_next()
     bool ret = (iteration_next != NULL);
     if (!ret) 
     {
-	    iterating = false;
+	    iterating = false; // no more entries
     }
     return ret;
 }
 
 word_type literal_table_iteration_next()
 {
-    assert(iteration_next != NULL);
+    assert(iteration_next != NULL); // check valid state
     float ret = iteration_next->value;
     iteration_next = iteration_next->next;
     return ret;
