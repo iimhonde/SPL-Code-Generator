@@ -11,7 +11,7 @@
 
 
 
-extern  code_seq gen_code_var_decls(var_decls_t vds);
+extern code_seq gen_code_var_decls(var_decls_t vds);
 
 extern code_seq gen_code_var_decl(var_decl_t vd);
 
@@ -29,9 +29,7 @@ extern code_seq gen_code_blockStmt(block_stmt_t *block);
 
 extern code_seq gen_code_ifStmt(if_stmt_t *stmt);
 
-
 extern code_seq gen_code_whileStmt(while_stmt_t *stmt);
-
 
 extern code_seq gen_code_readStmt(read_stmt_t *stmt);
 
@@ -41,22 +39,19 @@ extern code_seq gen_code_expr(expr_t exp);
 
 extern code_seq gen_code_binary_op_expr(binary_op_expr_t exp);
 
-
 extern code_seq gen_code_op(token_t op);
 
 extern code_seq gen_code_arith_op(token_t arith_op);
 
-
 extern code_seq gen_code_rel_op(token_t rel_op);
-
 
 extern code_seq gen_code_ident(ident_t id);
 
-
 extern code_seq gen_code_number(number_t num);
-
 
 extern code_seq gen_code_logical_not_expr(expr_t exp);
 
+// added from float
+extern void gen_code_output_literals(BOFFILE bf);
 
 #endif
