@@ -50,7 +50,7 @@ code_seq gen_code_var_decls(var_decls_t vds)
     {
 	    // generate these in reverse order,
 	    // so the addressing offsets work properly
-	    ret = code_seq_concat(gen_code_var_decl(*vdp), ret);
+	    code_seq_concat(gen_code_var_decl(*vdp), ret);
 	    vdp = vdp->next;
     }
     return ret;
@@ -62,7 +62,7 @@ code_seq gen_code_var_decl(var_decl_t vd)
     return gen_code_idents(vd.idents, vd.type);
 }
 
-// generate code for identififers in idents with type vt
+//FIX ENTIRE FUNCTION
 code_seq gen_code_idents(ident_list_t ids)
 {
     code_seq ret = code_seq_empty();
@@ -73,6 +73,7 @@ code_seq gen_code_idents(ident_list_t ids)
 	    switch (vt) 
         {
 	        case float_te:
+                //code_seq_add_to end should be void 
 	            alloc_and_init = code_seq_add_to_end(alloc_and_init, code_fsw(SP, 0, 0));
 	            break;
 	        case bool_te:
@@ -84,7 +85,7 @@ code_seq gen_code_idents(ident_list_t ids)
 	    }
 	    // Generate these in revese order,
 	    // so addressing works propertly
-	    ret = code_seq_concat(alloc_and_init, ret);
+	    code_seq_concat(alloc_and_init, ret);
 	    idp = idp->next;
     }
     return ret;
@@ -101,11 +102,11 @@ code_seq gen_code_ident(ident_t id)
     type_exp_e typ = id_use_get_attrs(id.idu)->type;
     if (typ == float_te) 
     {
-	    ret = code_seq_add_to_end(ret, code_flw(T9, V0, offset_count));
+	    code_seq_add_to_end(ret, code_flw(T9, V0, offset_count));
     } 
     else 
     {
-	    ret = code_seq_add_to_end(ret, code_lw(T9, V0, offset_count));
+	    code_seq_add_to_end(ret, code_lw(T9, V0, offset_count));
     }
     return code_seq_concat(ret, code_push_reg_on_stack(V0, typ));
 }
@@ -152,10 +153,10 @@ code_seq gen_code_assign_stmt(assign_stmt_t stmt)
     assert(offset_count <= USHRT_MAX); // Ensure the offset is valid
 
     // Compute the address of the variable using the frame pointer
-    ret = code_seq_concat(&ret, code_lwr(R4, FP, offset_count)); // Load address into $r4
+    code_seq_concat(&ret, code_lwr(R4, FP, offset_count)); // Load address into $r4
 
     // Store the result from $r3 into the variable's memory location
-    ret = code_seq_add_to_end(&ret, code_swr(R4, R3, 0));
+    code_seq_add_to_end(&ret, code_swr(R4, R3, 0));
 
     return ret;
 }
@@ -168,16 +169,16 @@ code_seq gen_code_callStmt(call_stmt_t *stmt)
     code_seq ret = code_seq_empty();
 
     // 1. Save registers and set up the activation record
-    ret = code_seq_concat(ret, code_utils_save_registers_for_AR());
+    code_seq_concat(ret, code_utils_save_registers_for_AR());
 
     // 2. Call the procedure using its address
     assert(stmt != NULL);
     assert(stmt->idu != NULL); // Ensure identifier use is valid
     unsigned int offset_count = id_use_get_attrs(stmt->idu)->offset_count;
-    ret = code_seq_add_to_end(ret, code_call(offset_count));
+    code_seq_add_to_end(ret, code_call(offset_count));
 
     // 3. Restore caller's context
-    ret = code_seq_concat(ret, code_utils_restore_registers_from_AR());
+    code_seq_concat(ret, code_utils_restore_registers_from_AR());
 
     return ret;
 }
@@ -190,26 +191,26 @@ code_seq gen_code_blockStmt(block_stmt_t *block_stmt)
 
    
     if (block->const_decls != NULL) {
-        ret = code_seq_concat(ret, gen_code_constDecls(&block->const_decls));
+        code_seq_concat(ret, gen_code_constDecls(&block->const_decls));
     }
 
 
     if (block->var_decls != NULL) {
-        ret = code_seq_concat(ret, gen_code_varDecls(&block->var_decls));
+        code_seq_concat(ret, gen_code_varDecls(&block->var_decls));
     }
 
     if (block->proc_decls != NULL) {
-        ret = code_seq_concat(ret, gen_code_procDecls(&block->proc_decls));
+        code_seq_concat(ret, gen_code_procDecls(&block->proc_decls));
     }
 
   
     if (block->stmts != NULL) {
-        ret = code_seq_concat(ret, gen_code_stmts(&block->stmts));
+        code_seq_concat(ret, gen_code_stmts(&block->stmts));
     }
 
 
     if (block->var_decls != NULL) {
-        ret = code_seq_concat(ret, code_utils_deallocate_stack_space(block->var_decls.num_vars));
+        code_seq_concat(ret, code_utils_deallocate_stack_space(block->var_decls.num_vars));
     }
 
     return ret;
@@ -220,7 +221,7 @@ code_seq gen_code_stmts(stmts_t stmts)
     code_seq ret = code_seq_empty();
     stmt_t *sp = stmts.stmts;
     while (sp != NULL) {
-	ret = code_seq_concat(ret, gen_code_stmt(*sp));
+	code_seq_concat(ret, gen_code_stmt(*sp));
 	sp = sp->next;
     }
     return ret;
@@ -234,16 +235,16 @@ code_seq gen_code_condition(condition_t *cond)
         case ck_db:
             // Generate code for the divisible condition
             ret = gen_code_expr(&(cond->data.db_cond.dividend));
-            ret = code_seq_concat(ret, gen_code_expr(&(cond->data.db_cond.divisor)));
-            ret = code_seq_add_to_end(ret, code_mod(R3, R4)); // R3 = dividend % divisor
-            ret = code_seq_add_to_end(ret, code_beqz(R3));    // Branch if R3 == 0
+            code_seq_concat(ret, gen_code_expr(&(cond->data.db_cond.divisor)));
+            code_seq_add_to_end(ret, code_mod(R3, R4)); // R3 = dividend % divisor
+            code_seq_add_to_end(ret, code_beqz(R3));    // Branch if R3 == 0
             break;
 
         case ck_rel:
             // Generate code for the relational condition
             ret = gen_code_expr(&(cond->data.rel_op_cond.expr1));
-            ret = code_seq_concat(ret, gen_code_expr(&(cond->data.rel_op_cond.expr2)));
-            ret = code_seq_add_to_end(ret, code_relop(cond->data.rel_op_cond.rel_op.code)); // Evaluate rel_op
+            code_seq_concat(ret, gen_code_expr(&(cond->data.rel_op_cond.expr2)));
+            code_seq_add_to_end(ret, code_relop(cond->data.rel_op_cond.rel_op.code)); // Evaluate rel_op
             break;
 
         default:
@@ -267,14 +268,14 @@ code_seq gen_code_if_stmt(if_stmt_t stmt) {
         else_code_len = code_seq_size(else_code);
     }
 
-    ret = code_seq_add_to_end(ret, code_beq(R3, 0, then_code_len));
-    ret = code_seq_concat(ret, then_code);
+    code_seq_add_to_end(ret, code_beq(R3, 0, then_code_len));
+    code_seq_concat(ret, then_code);
 
     if (else_code_len > 0) {
-        ret = code_seq_add_to_end(ret, code_jump(else_code_len));
+        code_seq_add_to_end(ret, code_jump(else_code_len));
     }
 
-    ret = code_seq_concat(ret, else_code);
+    code_seq_concat(ret, else_code);
 
     return ret;
 }
@@ -287,10 +288,10 @@ code_seq gen_code_whileStmt(while_stmt_t *stmt)
     code_seq body_code = gen_code_stmts(stmt->body);
     int condition_size = code_seq_size(condition_code);
     int body_size = code_seq_size(body_code);
-    ret = code_seq_concat(ret, condition_code);
-    ret = code_seq_add_to_end(ret, code_brf(body_size));
-    ret = code_seq_concat(ret, body_code);
-    ret = code_seq_add_to_end(ret, code_jump(-(condition_size + body_size)));
+    code_seq_concat(ret, condition_code);
+    code_seq_add_to_end(ret, code_brf(body_size));
+    code_seq_concat(ret, body_code);
+    code_seq_add_to_end(ret, code_jump(-(condition_size + body_size)));
     return ret;
 }
 
@@ -299,11 +300,11 @@ code_seq gen_code_readStmt(read_stmt_t *stmt)
 {
     code_seq ret = code_seq_singleton(code_rch());
     assert(stmt.idu != NULL);
-    ret = code_seq_concat(ret, code_compute_fp(R4, stmt.idu->levelsOutward));
+    code_seq_concat(ret, code_compute_fp(R4, stmt.idu->levelsOutward));
     assert(id_use_get_attrs(stmt.idu) != NULL);
     unsigned int offset_count = id_use_get_attrs(stmt.idu)->offset_count;
     assert(offset_count <= USHRT_MAX);
-    ret = code_seq_add_to_end(ret, code_seq_singleton(code_swr(R4, R3, offset_count)));
+    code_seq_add_to_end(ret, code_seq_singleton(code_swr(R4, R3, offset_count)));
     return ret;
 }
 
@@ -343,12 +344,12 @@ code_seq gen_code_binary_op_expr(binary_op_expr_t exp)
 {
     // put the values of the two subexpressions on the stack
     code_seq ret = gen_code_expr(*(exp.expr1));
-    ret = code_seq_concat(ret, gen_code_expr(*(exp.expr2)));
+    code_seq_concat(ret, gen_code_expr(*(exp.expr2)));
     // check the types match
     type_exp_e t1 = ast_expr_type(*(exp.expr1));
     assert(ast_expr_type(*(exp.expr2)) == t1);
     // do the operation, putting the result on the stack
-    ret = code_seq_concat(ret, gen_code_op(exp.op, t1));
+    code_seq_concat(ret, gen_code_op(exp.op, t1));
     return ret;
 }
 
@@ -377,10 +378,10 @@ code_seq gen_code_op(token_t op)
 // generate code to apply floating-point arith_op, put result on top of stack
 code_seq gen_code_arith_op(token_t arith_op)
 {
-    // load top of the stack (the second operand) into AT
+    //FIX CODE_SEQ_ADD_TO_END
     code_seq ret = code_pop_stack_into_reg(AT, float_te);
     // load next element of the stack into V0
-    ret = code_seq_concat(ret, code_pop_stack_into_reg(V0, float_te));
+    code_seq_concat(ret, code_pop_stack_into_reg(V0, float_te));
 
     code_seq do_op = code_seq_empty();
     switch (arith_op.code) 
@@ -411,7 +412,7 @@ code_seq gen_code_rel_op(token_t rel_op)
     // load top of the stack (the second operand) into AT
     code_seq ret = code_pop_stack_into_reg(AT, typ);
     // load next element of the stack into V0
-    ret = code_seq_concat(ret, code_pop_stack_into_reg(V0, typ));
+    code_seq_concat(ret, code_pop_stack_into_reg(V0, typ));
 
     // start out by doing the comparison
     // and skipping the next 2 instructions if it's true
@@ -490,12 +491,12 @@ code_seq gen_code_rel_op(token_t rel_op)
 	        bail_with_error("Unknown token code (%d) in gen_code_rel_op", rel_op.code);
 	        break;
     }
-    ret = code_seq_concat(ret, do_op);
+    code_seq_concat(ret, do_op);
     // rest of the code for the comparisons
-    ret = code_seq_add_to_end(ret, code_add(0, 0, AT)); // put false in AT
-    ret = code_seq_add_to_end(ret, code_beq(0, 0, 1)); // skip next instr
-    ret = code_seq_add_to_end(ret, code_addi(0, AT, 1)); // put true in AT
-    ret = code_seq_concat(ret, code_push_reg_on_stack(AT, bool_te));
+    code_seq_add_to_end(ret, code_add(0, 0, AT)); // put false in AT
+    code_seq_add_to_end(ret, code_beq(0, 0, 1)); // skip next instr
+    code_seq_add_to_end(ret, code_addi(0, AT, 1)); // put true in AT
+    code_seq_concat(ret, code_push_reg_on_stack(AT, bool_te));
     return ret;
 }
 
@@ -510,11 +511,11 @@ code_seq gen_code_ident(ident_t id)
     type_exp_e typ = id_use_get_attrs(id.idu)->type;
     if (typ == float_te) 
     {
-	    ret = code_seq_add_to_end(ret, code_flw(T9, V0, offset_count));
+	    code_seq_add_to_end(ret, code_flw(T9, V0, offset_count));
     } 
     else 
     {
-	    ret = code_seq_add_to_end(ret, code_lw(T9, V0, offset_count));
+	    code_seq_add_to_end(ret, code_lw(T9, V0, offset_count));
     }
     return code_seq_concat(ret, code_push_reg_on_stack(V0, typ));
 }
@@ -530,17 +531,17 @@ code_seq gen_code_number(number_t num)
 code_seq gen_code_logical_not_expr(expr_t exp)
 {
     code_seq ret = gen_code_expr(exp);
-    ret = code_seq_concat(ret, code_pop_stack_into_reg(AT, bool_te));
+    code_seq_concat(ret, code_pop_stack_into_reg(AT, bool_te));
     // if 0 skip next 2 instructions
-    ret = code_seq_add_to_end(ret, code_beq(0, AT, 2));
+    code_seq_add_to_end(ret, code_beq(0, AT, 2));
     // it was 1, so put 0 in AT
-    ret = code_seq_add_to_end(ret, code_add(0, 0, AT));
+    code_seq_add_to_end(ret, code_add(0, 0, AT));
     // and skip the next instruction
-    ret = code_seq_add_to_end(ret, code_beq(0, 0, 1));
+    code_seq_add_to_end(ret, code_beq(0, 0, 1));
     // put 1 in AT
-    ret = code_seq_add_to_end(ret, code_addi(0, AT, 1));
+    code_seq_add_to_end(ret, code_addi(0, AT, 1));
     // push the result on the stack
-    ret = code_seq_concat(ret, code_push_reg_on_stack(AT, bool_te));
+    code_seq_concat(ret, code_push_reg_on_stack(AT, bool_te));
     return ret;
 }
 
