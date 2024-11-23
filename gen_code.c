@@ -1,5 +1,4 @@
-/* $Id: gen_code.c, 2024/11/15 $ */
-
+ /*$Id: gen_code.c, 2024/11/15 $ */
 #include <limits.h>
 #include <string.h>
 #include "spl.tab.h"
@@ -138,82 +137,176 @@ code_seq gen_code_stmt(stmt_t stmt)
     // The following can never execute, but this quiets gcc's warning
     return code_seq_empty();
 }
-
+*/
 // generate code for stmt
 code_seq gen_code_assign_stmt(assign_stmt_t stmt)
 {
-    // can't call gen_code_ident,
-    // since stmt.name is not an ident_t
-    code_seq ret;
-    // put value of expression in $v0
-    ret = gen_code_expr(*(stmt.expr));
+    code_seq ret = gen_code_expr(*(stmt.expr));
+
+    // Ensure the identifier and its attributes are valid
     assert(stmt.idu != NULL);
     assert(id_use_get_attrs(stmt.idu) != NULL);
-    type_exp_e typ = id_use_get_attrs(stmt.idu)->type;
-    ret = code_seq_concat(ret, code_pop_stack_into_reg(V0, typ));
-    // put frame pointer from the lexical address of the name
-    // (using stmt.idu) into $t9
-    ret = code_seq_concat(ret, code_compute_fp(T9, stmt.idu->levelsOutward));
+
+    // Get the offset for the variable
     unsigned int offset_count = id_use_get_attrs(stmt.idu)->offset_count;
-    assert(offset_count <= USHRT_MAX); // it has to fit!
-    switch (id_use_get_attrs(stmt.idu)->type) 
-    {
-        case float_te:
-	        ret = code_seq_add_to_end(ret, code_fsw(T9, V0, offset_count));
-	        break;
-        case bool_te:
-	        ret = code_seq_add_to_end(ret, code_sw(T9, V0, offset_count));
-	        break;
-        default:
-	        bail_with_error("Bad var_type (%d) for ident in assignment stmt!", id_use_get_attrs(stmt.idu)->type);
-	        break;
-    }
+    assert(offset_count <= USHRT_MAX); // Ensure the offset is valid
+
+    // Compute the address of the variable using the frame pointer
+    ret = code_seq_concat(&ret, code_lwr(R4, FP, offset_count)); // Load address into $r4
+
+    // Store the result from $r3 into the variable's memory location
+    ret = code_seq_add_to_end(&ret, code_swr(R4, R3, 0));
+
     return ret;
 }
+
 
 // *** generate code for stmts ***
 
 code_seq gen_code_callStmt(call_stmt_t *stmt)
 {
-    // to do
+    code_seq ret = code_seq_empty();
+
+    // 1. Save registers and set up the activation record
+    ret = code_seq_concat(ret, code_utils_save_registers_for_AR());
+
+    // 2. Call the procedure using its address
+    assert(stmt != NULL);
+    assert(stmt->idu != NULL); // Ensure identifier use is valid
+    unsigned int offset_count = id_use_get_attrs(stmt->idu)->offset_count;
+    ret = code_seq_add_to_end(ret, code_call(offset_count));
+
+    // 3. Restore caller's context
+    ret = code_seq_concat(ret, code_utils_restore_registers_from_AR());
+
+    return ret;
 }
 
-code_seq gen_code_blockStmt(block_stmt_t *block)
+
+code_seq gen_code_blockStmt(block_stmt_t *block_stmt)
 {
-    // to do
+    code_seq ret = code_seq_empty();
+    block_t *block = block_stmt->block;
+
+   
+    if (block->const_decls != NULL) {
+        ret = code_seq_concat(ret, gen_code_constDecls(&block->const_decls));
+    }
+
+
+    if (block->var_decls != NULL) {
+        ret = code_seq_concat(ret, gen_code_varDecls(&block->var_decls));
+    }
+
+    if (block->proc_decls != NULL) {
+        ret = code_seq_concat(ret, gen_code_procDecls(&block->proc_decls));
+    }
+
+  
+    if (block->stmts != NULL) {
+        ret = code_seq_concat(ret, gen_code_stmts(&block->stmts));
+    }
+
+
+    if (block->var_decls != NULL) {
+        ret = code_seq_concat(ret, code_utils_deallocate_stack_space(block->var_decls.num_vars));
+    }
+
+    return ret;
 }
 
-code_seq gen_code_ifStmt(if_stmt_t *stmt)
+code_seq gen_code_stmts(stmts_t stmts)
 {
-    // put truth value of stmt.expr in $v0
-    code_seq ret = gen_code_expr(stmt.expr);
-    ret = code_seq_concat(ret, code_pop_stack_into_reg(V0, bool_te));
-    code_seq cbody = gen_code_stmt(*(stmt.body));
-    int cbody_len = code_seq_size(cbody);
-    // skip over body if $v0 contains false
-    ret = code_seq_add_to_end(ret, code_beq(V0, 0, cbody_len));
-    return code_seq_concat(ret, cbody);
+    code_seq ret = code_seq_empty();
+    stmt_t *sp = stmts.stmts;
+    while (sp != NULL) {
+	ret = code_seq_concat(ret, gen_code_stmt(*sp));
+	sp = sp->next;
+    }
+    return ret;
 }
+
+code_seq gen_code_condition(condition_t *cond)
+{
+    code_seq ret = code_seq_empty();
+
+    switch (cond->cond_kind) {
+        case ck_db:
+            // Generate code for the divisible condition
+            ret = gen_code_expr(&(cond->data.db_cond.dividend));
+            ret = code_seq_concat(ret, gen_code_expr(&(cond->data.db_cond.divisor)));
+            ret = code_seq_add_to_end(ret, code_mod(R3, R4)); // R3 = dividend % divisor
+            ret = code_seq_add_to_end(ret, code_beqz(R3));    // Branch if R3 == 0
+            break;
+
+        case ck_rel:
+            // Generate code for the relational condition
+            ret = gen_code_expr(&(cond->data.rel_op_cond.expr1));
+            ret = code_seq_concat(ret, gen_code_expr(&(cond->data.rel_op_cond.expr2)));
+            ret = code_seq_add_to_end(ret, code_relop(cond->data.rel_op_cond.rel_op.code)); // Evaluate rel_op
+            break;
+
+        default:
+            bail_with_error("Unknown condition kind in gen_code_condition!");
+            break;
+    }
+
+    return ret;
+}
+
+
+code_seq gen_code_if_stmt(if_stmt_t stmt) {
+    code_seq ret = gen_code_condition(&(stmt.condition));
+    code_seq then_code = gen_code_stmts(stmt.then_stmts);
+    int then_code_len = code_seq_size(then_code);
+
+    code_seq else_code = code_seq_empty();
+    int else_code_len = 0;
+    if (stmt.else_stmts != NULL && stmt.else_stmts->stmts_kind != empty_stmts_e) {
+        else_code = gen_code_stmts(stmt.else_stmts);
+        else_code_len = code_seq_size(else_code);
+    }
+
+    ret = code_seq_add_to_end(ret, code_beq(R3, 0, then_code_len));
+    ret = code_seq_concat(ret, then_code);
+
+    if (else_code_len > 0) {
+        ret = code_seq_add_to_end(ret, code_jump(else_code_len));
+    }
+
+    ret = code_seq_concat(ret, else_code);
+
+    return ret;
+}
+
 
 code_seq gen_code_whileStmt(while_stmt_t *stmt)
 {
-    // to do
+    code_seq ret = code_seq_empty();
+    code_seq condition_code = gen_code_condition(&(stmt->condition));
+    code_seq body_code = gen_code_stmts(stmt->body);
+    int condition_size = code_seq_size(condition_code);
+    int body_size = code_seq_size(body_code);
+    ret = code_seq_concat(ret, condition_code);
+    ret = code_seq_add_to_end(ret, code_brf(body_size));
+    ret = code_seq_concat(ret, body_code);
+    ret = code_seq_add_to_end(ret, code_jump(-(condition_size + body_size)));
+    return ret;
 }
+
 
 code_seq gen_code_readStmt(read_stmt_t *stmt)
 {
-    // put number read into $v0
     code_seq ret = code_seq_singleton(code_rch());
-    // put frame pointer from the lexical address of the name
-    // (using stmt.idu) into $t9
     assert(stmt.idu != NULL);
-    ret = code_seq_concat(ret, code_compute_fp(T9, stmt.idu->levelsOutward));
+    ret = code_seq_concat(ret, code_compute_fp(R4, stmt.idu->levelsOutward));
     assert(id_use_get_attrs(stmt.idu) != NULL);
     unsigned int offset_count = id_use_get_attrs(stmt.idu)->offset_count;
-    assert(offset_count <= USHRT_MAX); // it has to fit!
-    ret = code_seq_add_to_end(ret, code_seq_singleton(code_fsw(T9, V0, offset_count)));
+    assert(offset_count <= USHRT_MAX);
+    ret = code_seq_add_to_end(ret, code_seq_singleton(code_swr(R4, R3, offset_count)));
     return ret;
 }
+
 
 code_seq gen_code_printStmt(print_stmt_t *stmt)
 {
