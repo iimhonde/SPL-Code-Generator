@@ -17,31 +17,30 @@ code_seq gen_code_initialize()
 }
 
 //needs to be filled out
-static void gen_code_output_seq(BOFFILE bf, code_seq* cs){
-    while (cs != NULL) {
-        BOFHeader ret = bof_read_header(bf);
-        bin_instr_t inst = code_seq_first(*cs) -> instr;
+static void gen_code_output_seq(BOFFILE bf, code_seq cs){
+    while (cs != NULL){
+        bin_instr_t inst = code_seq_first(cs) -> instr;
         instruction_write_bin_instr(bf, inst);
-        *cs = code_seq_rest(*cs);
-        ret.text_length = code_seq_size(*cs);
+        cs = code_seq_rest(cs);
+        ret.text_length = code_seq_size(cs);
 
     }
 }
 
 static BOFHeader gen_code_program_header(code_seq main_cs){
     BOFHeader ret;
-    bof_write_magic_to_header(&ret);
+    strncpy(ret.magic, MAGIC, MAGIC_BUFFER_SIZE);
     ret.text_start_address = 0;
-    ret.text_length = code_seq_size(main_cs) * BYTES_PER_WORD;
+     ret.text_length = code_seq_size(main_cs) * BYTES_PER_WORD;
     int dsa = MAX(ret.text_length, 1024) + BYTES_PER_WORD;
     ret.data_start_address = dsa;
-    int sba = dsa + ret.data_start_address + MAGIC_BUFFER_SIZE;
+    int sba = dsa + ret.data_start_address + 1024;
     ret.stack_bottom_addr = sba;
-    return ret;
+     return ret;
 }
-//static void gen_code_output_literals(BOFFILE bf)
+static void gen_code_output_literals(BOFFILE bf);
 
-//static void gen_code_output_program(BOFFILE bf, code_seq main_cs)
+static void gen_code_output_program(BOFFILE bf, code_seq main_cs);
 
 void gen_code_program(BOFFILE bf, block_t prog){
 
@@ -80,10 +79,10 @@ code_seq gen_code_idents(ident_list_t ids)
         {
 	        case float_te:
                 //code_seq_add_to end should be void 
-	            alloc_and_init = code_seq_add_to_end(alloc_and_init, code_fsw(SP, 0, 0));
+	            code_seq_add_to_end(alloc_and_init, code_fsw(SP, 0, 0));
 	            break;
 	        case bool_te:
-	            alloc_and_init = code_seq_add_to_end(alloc_and_init, code_sw(SP, 0, 0));
+	            code_seq_add_to_end(alloc_and_init, code_sw(SP, 0, 0));
 	            break;
 	        default:
 	            bail_with_error("Bad type_exp_e (%d) passed to gen_code_idents!", vt);
@@ -97,14 +96,14 @@ code_seq gen_code_idents(ident_list_t ids)
     return ret;
 }
 
-// generate code to put value of given identifier on top of stack
+//FIX
 code_seq gen_code_ident(ident_t id)
 {
     assert(id.idu != NULL);
     code_seq ret = code_compute_fp(T9, id.idu->levelsOutward);
     assert(id_use_get_attrs(id.idu) != NULL);
     unsigned int offset_count = id_use_get_attrs(id.idu)->offset_count;
-    assert(offset_count <= USHRT_MAX); // it has to fit!
+    assert(offset_count <= USHRT_MAX); 
     type_exp_e typ = id_use_get_attrs(id.idu)->type;
     if (typ == float_te) 
     {
@@ -117,7 +116,7 @@ code_seq gen_code_ident(ident_t id)
     return code_seq_concat(ret, code_push_reg_on_stack(V0, typ));
 }
 
-// generate code for stmt
+
 code_seq gen_code_stmt(stmt_t stmt)
 {
     switch (stmt.stmt_kind) 
@@ -141,49 +140,47 @@ code_seq gen_code_stmt(stmt_t stmt)
 	        bail_with_error("Call to gen_code_stmt with an AST that is not a statement!");
 	        break;
     }
-    // The following can never execute, but this quiets gcc's warning
+
     return code_seq_empty();
 }
 */
-// generate code for stmt
+
 code_seq gen_code_assign_stmt(assign_stmt_t stmt)
 {
     code_seq ret = gen_code_expr(*(stmt.expr));
 
-    // Ensure the identifier and its attributes are valid
+
     assert(stmt.idu != NULL);
     assert(id_use_get_attrs(stmt.idu) != NULL);
 
-    // Get the offset for the variable
+ 
     unsigned int offset_count = id_use_get_attrs(stmt.idu)->offset_count;
-    assert(offset_count <= USHRT_MAX); // Ensure the offset is valid
+    assert(offset_count <= USHRT_MAX);
 
-    // Compute the address of the variable using the frame pointer
-    code_seq_concat(&ret, code_lwr(R4, FP, offset_count)); // Load address into $r4
-
-    // Store the result from $r3 into the variable's memory location
+    code_seq_concat(&ret, code_lwr(R4, FP, offset_count)); 
+   
     code_seq_add_to_end(&ret, code_swr(R4, R3, 0));
 
     return ret;
 }
 
 
-// *** generate code for stmts ***
+
 
 code_seq gen_code_callStmt(call_stmt_t *stmt)
 {
     code_seq ret = code_seq_empty();
 
-    // 1. Save registers and set up the activation record
+    
     code_seq_concat(ret, code_utils_save_registers_for_AR());
 
-    // 2. Call the procedure using its address
+   
     assert(stmt != NULL);
-    assert(stmt->idu != NULL); // Ensure identifier use is valid
+    assert(stmt->idu != NULL); 
     unsigned int offset_count = id_use_get_attrs(stmt->idu)->offset_count;
     code_seq_add_to_end(ret, code_call(offset_count));
 
-    // 3. Restore caller's context
+  
     code_seq_concat(ret, code_utils_restore_registers_from_AR());
 
     return ret;
@@ -239,15 +236,15 @@ code_seq gen_code_condition(condition_t *cond)
 
     switch (cond->cond_kind) {
         case ck_db:
-            // Generate code for the divisible condition
+            
             ret = gen_code_expr(&(cond->data.db_cond.dividend));
             code_seq_concat(ret, gen_code_expr(&(cond->data.db_cond.divisor)));
-            code_seq_add_to_end(ret, code_mod(R3, R4)); // R3 = dividend % divisor
-            code_seq_add_to_end(ret, code_beqz(R3));    // Branch if R3 == 0
+            code_seq_add_to_end(ret, code_mod(R3, R4)); 
+            code_seq_add_to_end(ret, code_beqz(R3));    
             break;
 
         case ck_rel:
-            // Generate code for the relational condition
+           
             ret = gen_code_expr(&(cond->data.rel_op_cond.expr1));
             code_seq_concat(ret, gen_code_expr(&(cond->data.rel_op_cond.expr2)));
             code_seq_add_to_end(ret, code_relop(cond->data.rel_op_cond.rel_op.code)); // Evaluate rel_op
@@ -317,10 +314,13 @@ code_seq gen_code_readStmt(read_stmt_t *stmt)
 
 code_seq gen_code_printStmt(print_stmt_t *stmt)
 {
-    // to do
+     code_seq ret = gen_code_expr(stmt->expr);
+    ret = code_seq_concat(ret, code_seq_singleton(code_pint(SP, 0)));
+    ret = code_seq_concat(ret, code_utils_deallocate_stack_space(1));
+    return ret;
 }
 
-// generate code for the expression exp, put result on top of stack
+
 code_seq gen_code_expr(expr_t exp)
 {
     switch (exp.expr_kind) 
@@ -532,7 +532,7 @@ code_seq gen_code_number(number_t num)
 code_seq gen_code_logical_not_expr(expr_t exp)
 {
     code_seq ret = gen_code_expr(exp);
-    code_seq_concat(&ret, code_pop_stack_into_reg(AT, bool_te));
+    code_seq_concat(ret, code_pop_stack_into_reg(AT, bool_te));
     // if 0 skip next 2 instructions
     code_seq_add_to_end(ret, code_beq(0, AT, 2));
     // it was 1, so put 0 in AT
