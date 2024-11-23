@@ -30,9 +30,14 @@ static void gen_code_output_seq(BOFFILE bf, code_seq* cs){
 
 static BOFHeader gen_code_program_header(code_seq main_cs){
     BOFHeader ret;
-    strncpy(ret.magic, MAGIC, MAGIC_BUFFER_SIZE);
+    bof_write_magic_to_header(&ret);
     ret.text_start_address = 0;
-
+    ret.text_length = code_seq_size(main_cs) * BYTES_PER_WORD;
+    int dsa = MAX(ret.text_length, 1024) + BYTES_PER_WORD;
+    ret.data_start_address = dsa;
+    int sba = dsa + ret.data_start_address + 4096;
+    ret.stack_bottom_addr = sba;
+    return ret;
 }
 //static void gen_code_output_literals(BOFFILE bf)
 
@@ -527,7 +532,7 @@ code_seq gen_code_number(number_t num)
 code_seq gen_code_logical_not_expr(expr_t exp)
 {
     code_seq ret = gen_code_expr(exp);
-    code_seq_concat(ret, code_pop_stack_into_reg(AT, bool_te));
+    code_seq_concat(&ret, code_pop_stack_into_reg(AT, bool_te));
     // if 0 skip next 2 instructions
     code_seq_add_to_end(ret, code_beq(0, AT, 2));
     // it was 1, so put 0 in AT
