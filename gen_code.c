@@ -339,19 +339,14 @@ code_seq gen_code_expr(expr_t exp)
     return code_seq_empty();
 }
 
-// generate code for the expression exp, put result on top of stack
 code_seq gen_code_binary_op_expr(binary_op_expr_t exp)
 {
-    // put the values of the two subexpressions on the stack
     code_seq ret = gen_code_expr(*(exp.expr1));
-    code_seq_concat(ret, gen_code_expr(*(exp.expr2)));
-    // check the types match
-    type_exp_e t1 = ast_expr_type(*(exp.expr1));
-    assert(ast_expr_type(*(exp.expr2)) == t1);
-    // do the operation, putting the result on the stack
-    code_seq_concat(ret, gen_code_op(exp.op, t1));
+    ret = code_seq_concat(ret, gen_code_expr(*(exp.expr2)));
+    ret = code_seq_concat(ret, gen_code_op(exp.op));
     return ret;
 }
+
 
 // generate code to apply op, put result on top of stack
 code_seq gen_code_op(token_t op)
