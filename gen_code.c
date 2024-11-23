@@ -67,7 +67,7 @@ code_seq gen_code_var_decl(var_decl_t vd)
 code_seq gen_code_idents(ident_list_t ids)
 {
     code_seq ret = code_seq_empty();
-    ident_t *idp = idents.idents;
+    ident_t *idp = ids.idents;
     while (idp != NULL) 
     {
 	    code_seq alloc_and_init = code_seq_singleton(code_addi(SP, SP, - BYTES_PER_WORD));
