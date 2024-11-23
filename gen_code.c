@@ -35,7 +35,7 @@ static BOFHeader gen_code_program_header(code_seq main_cs){
     ret.text_length = code_seq_size(main_cs) * BYTES_PER_WORD;
     int dsa = MAX(ret.text_length, 1024) + BYTES_PER_WORD;
     ret.data_start_address = dsa;
-    int sba = dsa + ret.data_start_address + 4096;
+    int sba = dsa + ret.data_start_address + MAGIC_BUFFER_SIZE;
     ret.stack_bottom_addr = sba;
     return ret;
 }
