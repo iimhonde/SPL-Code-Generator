@@ -17,12 +17,13 @@ code_seq gen_code_initialize()
 }
 
 //needs to be filled out
-static void gen_code_output_seq(BOFFILE bf, code_seq cs){
-    while (cs != NULL){
-        bin_instr_t inst = code_seq_first(cs) -> instr;
+static void gen_code_output_seq(BOFFILE bf, code_seq* cs){
+    while (cs != NULL) {
+        BOFHeader ret = bof_read_header(bf);
+        bin_instr_t inst = code_seq_first(*cs) -> instr;
         instruction_write_bin_instr(bf, inst);
-        cs = code_seq_rest(cs);
-        ret.text_length = code_seq_size(main_cs);
+        *cs = code_seq_rest(*cs);
+        ret.text_length = code_seq_size(*cs);
 
     }
 }
