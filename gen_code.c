@@ -17,7 +17,30 @@ code_seq gen_code_initialize()
     literal_table_initialize();
 }
 
-void gen_code_program(BOFFILE bf, block_t prog){}
+//needs to be filled out
+static void gen_code_output_seq(BOFFILE bf, code_seq cs){
+    while (cs != NULL){
+        bin_instr_t inst = code_seq_first(cs) -> instr;
+        instruction_write_bin_instr(bf, inst);
+        cs = code_seq_rest(cs);
+        ret.text_length = code_seq_size(main_cs);
+
+    }
+}
+
+static BOFHeader gen_code_program_header(code_seq main_cs){
+    BOFHeader ret;
+    strncpy(ret.magic, MAGIC, MAGIC_BUFFER_SIZE);
+    ret.text_start_address = 0;
+
+}
+//static void gen_code_output_literals(BOFFILE bf)
+
+//static void gen_code_output_program(BOFFILE bf, code_seq main_cs)
+
+void gen_code_program(BOFFILE bf, block_t prog){
+
+}
 
 // generate code for var_decls_t vds to out
 code_seq gen_code_var_decls(var_decls_t vds)
