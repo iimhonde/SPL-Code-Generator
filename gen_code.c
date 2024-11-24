@@ -10,6 +10,8 @@
 #include "utilities.h"
 #include "regname.h"
 
+#define MAX_STACK 4096
+
 // initialize the code generator
 code_seq gen_code_initialize()
 {
@@ -31,10 +33,10 @@ static BOFHeader gen_code_program_header(code_seq main_cs){
     BOFHeader ret;
     strncpy(ret.magic, MAGIC, MAGIC_BUFFER_SIZE);
     ret.text_start_address = 0;
-     ret.text_length = code_seq_size(main_cs) * BYTES_PER_WORD;
-    int dsa = MAX(ret.text_length, 1024) + BYTES_PER_WORD;
+    ret.text_length = code_seq_size(main_cs);
+    int dsa = MAX(ret.text_length, 1024);
     ret.data_start_address = dsa;
-    int sba = dsa + ret.data_start_address + 1024;
+    int sba = dsa + ret.data_start_address + MAX_STACK;
     ret.stack_bottom_addr = sba;
      return ret;
 }
@@ -42,8 +44,8 @@ static void gen_code_output_literals(BOFFILE bf);
 
 static void gen_code_output_program(BOFFILE bf, code_seq main_cs);
 
-void gen_code_program(BOFFILE bf, block_t prog){
-
+void gen_code_program(BOFFILE bf, block_t prog) {
+    
 }
 
 // generate code for var_decls_t vds to out
@@ -55,7 +57,8 @@ code_seq gen_code_var_decls(var_decls_t vds)
     {
 	    // generate these in reverse order,
 	    // so the addressing offsets work properly
-	    code_seq_concat(gen_code_var_decl(*vdp), ret);
+        code_seq varDecl = gen_code_var_decl(*vdp);
+	    code_seq_concat(&varDecl, ret);
 	    vdp = vdp->next;
     }
     return ret;
@@ -64,33 +67,20 @@ code_seq gen_code_var_decls(var_decls_t vds)
 // generate code for single <var-decl>, vd
 code_seq gen_code_var_decl(var_decl_t vd)
 {
-    return gen_code_idents(vd.idents, vd.type);
+    return gen_code_idents(vd.ident_list);
 }
 
 //FIX ENTIRE FUNCTION
 code_seq gen_code_idents(ident_list_t ids)
 {
     code_seq ret = code_seq_empty();
-    ident_t *idp = ids.idents;
+    ident_t *idp = ids.start;
     while (idp != NULL) 
     {
 	    code_seq alloc_and_init = code_seq_singleton(code_addi(SP, SP, - BYTES_PER_WORD));
-	    switch (vt) 
-        {
-	        case float_te:
-                //code_seq_add_to end should be void 
-	            code_seq_add_to_end(alloc_and_init, code_fsw(SP, 0, 0));
-	            break;
-	        case bool_te:
-	            code_seq_add_to_end(alloc_and_init, code_sw(SP, 0, 0));
-	            break;
-	        default:
-	            bail_with_error("Bad type_exp_e (%d) passed to gen_code_idents!", vt);
-	            break;
-	    }
 	    // Generate these in revese order,
 	    // so addressing works propertly
-	    code_seq_concat(alloc_and_init, ret);
+	    code_seq_concat(&alloc_and_init, ret);
 	    idp = idp->next;
     }
     return ret;
@@ -100,20 +90,12 @@ code_seq gen_code_idents(ident_list_t ids)
 code_seq gen_code_ident(ident_t id)
 {
     assert(id.idu != NULL);
-    code_seq ret = code_compute_fp(T9, id.idu->levelsOutward);
+    //code_seq ret = code_compute_fp(T9, id.idu->levelsOutward);
     assert(id_use_get_attrs(id.idu) != NULL);
     unsigned int offset_count = id_use_get_attrs(id.idu)->offset_count;
-    assert(offset_count <= USHRT_MAX); 
-    type_exp_e typ = id_use_get_attrs(id.idu)->type;
-    if (typ == float_te) 
-    {
-	    code_seq_add_to_end(ret, code_flw(T9, V0, offset_count));
-    } 
-    else 
-    {
-	    code_seq_add_to_end(ret, code_lw(T9, V0, offset_count));
-    }
-    return code_seq_concat(ret, code_push_reg_on_stack(V0, typ));
+    assert(offset_count <= USHRT_MAX); // it has to fit!
+    
+    //return code_seq_concat(ret, code_push_reg_on_stack(V0, typ));
 }
 
 
@@ -124,8 +106,8 @@ code_seq gen_code_stmt(stmt_t stmt)
         case assign_stmt:
 	        return gen_code_assign_stmt(stmt.data.assign_stmt);
 	        break;
-        case begin_stmt:
-	        return gen_code_begin_stmt(stmt.data.begin_stmt);
+        case block_stmt:
+	        return gen_code_block_stmt(stmt.data.block_stmt);
 	        break;
         case if_stmt:
 	        return gen_code_if_stmt(stmt.data.if_stmt);
@@ -202,9 +184,11 @@ code_seq gen_code_blockStmt(block_stmt_t *block_stmt)
         code_seq_concat(ret, gen_code_varDecls(&block->var_decls));
     }
 
+    /*
     if (block->proc_decls != NULL) {
         code_seq_concat(ret, gen_code_procDecls(&block->proc_decls));
     }
+    */
 
   
     if (block->stmts != NULL) {
