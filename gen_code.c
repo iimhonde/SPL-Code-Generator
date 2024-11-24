@@ -77,11 +77,13 @@ code_seq gen_code_idents(ident_list_t ids)
     ident_t *idp = ids.start;
     while (idp != NULL) 
     {
-	    code_seq alloc_and_init = code_seq_singleton(code_addi(SP, SP, - BYTES_PER_WORD));
+	    /*
+	    code_seq alloc_and_init = code_seq_singleton(code_addi(SP, SP, ));
 	    // Generate these in revese order,
 	    // so addressing works propertly
 	    code_seq_concat(&alloc_and_init, ret);
 	    idp = idp->next;
+     		*/
     }
     return ret;
 }
