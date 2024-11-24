@@ -21,6 +21,7 @@ code_seq gen_code_initialize()
 //needs to be filled out
 static void gen_code_output_seq(BOFFILE bf, code_seq cs){
     while (cs != NULL){
+        BOFHeader ret = bof_read_header(bf);
         bin_instr_t inst = code_seq_first(cs) -> instr;
         instruction_write_bin_instr(bf, inst);
         cs = code_seq_rest(cs);
@@ -31,7 +32,7 @@ static void gen_code_output_seq(BOFFILE bf, code_seq cs){
 
 static BOFHeader gen_code_program_header(code_seq main_cs){
     BOFHeader ret;
-    strncpy(ret.magic, MAGIC, MAGIC_BUFFER_SIZE);
+    bof_write_magic_to_header(&ret);
     ret.text_start_address = 0;
     ret.text_length = code_seq_size(main_cs);
     int dsa = MAX(ret.text_length, 1024);
