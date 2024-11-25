@@ -137,6 +137,9 @@ code_seq gen_code_const_def(const_def_t *def) {
 
     unsigned int literal_offset = literal_table_lookup(name, num);
 
+    code_seq alloc_cs = code_utils_allocate_stack_space(1);
+    code_seq_concat(&ret, alloc_cs);
+    
     code_seq load_cs = code_seq_singleton(code_lri(GP, literal_offset));
     code_seq_concat(&ret, load_cs);
 
