@@ -285,24 +285,33 @@ code_seq gen_code_assignStmt(assign_stmt_t * stmt)
 
 
 
-
-code_seq gen_code_callStmt(call_stmt_t * stmt)
-{
+code_seq gen_code_callStmt(call_stmt_t *stmt) {
     code_seq ret = code_seq_empty();
 
-    
+    assert(stmt->idu != NULL);
+
+    id_use *idu = stmt->idu;
+    id_attrs *attrs = id_use_get_attrs(idu);
+    assert(attrs != NULL);
+
+    unsigned int levelsOutward = idu->levelsOutward;
+    unsigned int offset = attrs->offset_count;
+
+   
+    code_seq static_link = code_utils_compute_fp(GP, levelsOutward);
+    code_seq_concat(&ret, static_link);
+
     code_seq_concat(&ret, code_utils_save_registers_for_AR());
 
    
-    assert(stmt->idu != NULL); 
-    unsigned int offset_count = id_use_get_attrs(stmt->idu)->offset_count;
-    code_seq_add_to_end(&ret, code_call(offset_count));
+    code_seq_add_to_end(&ret, code_call(offset));
 
-  
+ 
     code_seq_concat(&ret, code_utils_restore_registers_from_AR());
 
     return ret;
 }
+
 
 code_seq gen_code_blockStmt(block_stmt_t *block_stmt) {
   
