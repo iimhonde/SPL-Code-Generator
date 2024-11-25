@@ -178,7 +178,7 @@ code_seq gen_code_idents(ident_list_t *ids)
     while (idp != NULL) 
     {
 	    
-	    code_seq alloc = code_seq_singleton(code_sri(SP, 1));  
+	    code_seq alloc = code_utils_allocate_stack_space(1);
         code_seq_concat(&ret, alloc);
 
         code_seq store = code_seq_singleton(code_swr(SP, 0, 0));  
