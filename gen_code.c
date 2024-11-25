@@ -9,6 +9,7 @@
 #include "gen_code.h"
 #include "utilities.h"
 #include "regname.h"
+#include "label.h"
 
 #define MAX_STACK 4096
 
@@ -171,30 +172,48 @@ code_seq gen_code_idents(ident_list_t *ids)
 {
     code_seq ret = code_seq_empty();
     ident_t *idp = ids ->start;
+    
+   
+
     while (idp != NULL) 
     {
-	    /*
-	    code_seq alloc_and_init = code_seq_singleton(code_addi(SP, SP, ));
-	    // Generate these in revese order,
-	    // so addressing works propertly
-	    code_seq_concat(&alloc_and_init, ret);
-	    idp = idp->next;
-     		*/
+	    
+	    code_seq alloc = code_seq_singleton(code_sri(SP, 1));  
+        code_seq_concat(&ret, alloc);
+
+        code_seq store = code_seq_singleton(code_swr(SP, 0, 0));  
+        code_seq_concat(&ret, store);
+
+        idp = idp->next;
+     		
     }
     return ret;
 }
 
 //FIX
-code_seq gen_code_ident(ident_t *id)
-{
-    assert(id->idu != NULL);
-    //code_seq ret = code_compute_fp(T9, id.idu->levelsOutward);
-    assert(id_use_get_attrs(id->idu) != NULL);
-    unsigned int offset_count = id_use_get_attrs(id->idu)->offset_count;
-    assert(offset_count <= USHRT_MAX); // it has to fit!
-    
-    //return code_seq_concat(&ret, code_push_reg_on_stack(V0, typ));
+code_seq gen_code_ident(ident_t *id) {
+    assert(id->idu != NULL); 
+    id_attrs *attrs = id_use_get_attrs(id->idu);
+    id_use *idu = id -> idu;
+    assert(attrs != NULL);
+
+    unsigned int levelsOutward = idu->levelsOutward;
+    unsigned int offset = attrs->offset_count;
+    assert(offset <= USHRT_MAX); 
+
+    code_seq ret = code_seq_empty();
+ 
+
+    code_seq compute_fp = code_utils_compute_fp(GP, levelsOutward);
+    code_seq_concat(&ret, compute_fp);
+
+   
+    code_seq push_value = code_seq_singleton(code_cpw(SP, 0, GP, offset));
+    code_seq_concat(&ret, push_value);
+
+    return ret;
 }
+
 
 code_seq gen_code_stmts(stmts_t *stmts) {
     code_seq stmts_cs = code_seq_empty();
@@ -291,26 +310,28 @@ code_seq gen_code_blockStmt(block_stmt_t *block_stmt) {
     return gen_code_block(&block_stmt->block);
 }
 
-code_seq gen_code_condition(condition_t *cond)
-{
+code_seq gen_code_condition(condition_t *cond) {
     code_seq ret = code_seq_empty();
+    label *false_label = label_create();
+    label *end_label = label_create();
 
     switch (cond->cond_kind) {
-        case ck_db:
-            
+        case ck_db: {
             ret = gen_code_expr(&(cond->data.db_cond.dividend));
             code_seq_concat(&ret, gen_code_expr(&(cond->data.db_cond.divisor)));
-            code_seq_add_to_end(&ret, code_mod(R3, R4)); 
-            code_seq_add_to_end(&ret, code_beqz(R3));    
+            code_seq_add_to_end(&ret, code_div(SP, 0));
+            code_seq_add_to_end(&ret, code_beq(SP, 0, label_read(false_label)));
+            code_seq_add_to_end(&ret, code_jmpa(label_read(end_label)));
+            label_set(false_label, code_seq_size(ret));
+            label_set(end_label, code_seq_size(ret) + 1);
             break;
-
-        case ck_rel:
-           
+        }
+        case ck_rel: {
             ret = gen_code_expr(&(cond->data.rel_op_cond.expr1));
             code_seq_concat(&ret, gen_code_expr(&(cond->data.rel_op_cond.expr2)));
-            code_seq_add_to_end(&ret, code_relop(cond->data.rel_op_cond.rel_op.code)); // Evaluate rel_op
+            code_seq_add_to_end(&ret, code_relop(cond->data.rel_op_cond.rel_op.code));
             break;
-
+        }
         default:
             bail_with_error("Unknown condition kind in gen_code_condition!");
             break;
@@ -318,6 +339,7 @@ code_seq gen_code_condition(condition_t *cond)
 
     return ret;
 }
+
 
 
 code_seq gen_code_if_stmt(if_stmt_t * stmt) {
@@ -332,7 +354,7 @@ code_seq gen_code_if_stmt(if_stmt_t * stmt) {
         else_code_len = code_seq_size(else_code);
     }
 
-    code_seq_add_to_end(&ret, code_beq(R3, 0, then_code_len));
+    code_seq_add_to_end(&ret, code_beq(SP, 0, then_code_len));
     code_seq_concat(&ret, then_code);
 
     if (else_code_len > 0) {
@@ -345,21 +367,28 @@ code_seq gen_code_if_stmt(if_stmt_t * stmt) {
 }
 
 
-code_seq gen_code_whileStmt(while_stmt_t *stmt)
-{
+code_seq gen_code_whileStmt(while_stmt_t *stmt) {
     code_seq ret = code_seq_empty();
+    label *start_label = label_create();
+    label *end_label = label_create();
+
+    label_set(start_label, code_seq_size(ret));
 
     code_seq condition_code = gen_code_condition(&(stmt->condition));
-    int condition_size = code_seq_size(condition_code);
+    code_seq_concat(&ret, condition_code);
+
+    code_seq_add_to_end(&ret, code_beq(SP, 0, label_read(end_label)));
 
     code_seq body_code = gen_code_stmts(&stmt->body);
-    int body_size = code_seq_size(body_code);
-    code_seq_concat(&ret, condition_code);
-    code_seq_add_to_end(&ret, code_brf(body_size));
     code_seq_concat(&ret, body_code);
-    code_seq_add_to_end(&ret, code_jump(-(condition_size + body_size)));
+
+    code_seq_add_to_end(&ret, code_jmpa(label_read(start_label)));
+
+    label_set(end_label, code_seq_size(ret));
+
     return ret;
 }
+
 
 
 code_seq gen_code_readStmt(read_stmt_t *stmt) {
