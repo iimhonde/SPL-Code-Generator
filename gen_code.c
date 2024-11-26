@@ -22,11 +22,10 @@ code_seq gen_code_initialize()
 //needs to be filled out
 static void gen_code_output_seq(BOFFILE bf, code_seq cs){
     while (!code_seq_is_empty(cs)){
-        BOFHeader ret = bof_read_header(bf);
+       
         bin_instr_t inst = code_seq_first(cs) -> instr;
         instruction_write_bin_instr(bf, inst);
         cs = code_seq_rest(cs);
-        ret.text_length = code_seq_size(cs);
 
     }
 }
@@ -131,7 +130,7 @@ code_seq gen_code_const_def_list(const_def_list_t *cdl) {
 code_seq gen_code_const_def(const_def_t *def) {
     code_seq ret = code_seq_empty();
 
-    char * name = def ->ident.name;
+    const char * name = def ->ident.name;
 
     word_type num = def ->number.value;
 
@@ -140,7 +139,7 @@ code_seq gen_code_const_def(const_def_t *def) {
     code_seq alloc_cs = code_utils_allocate_stack_space(1);
     code_seq_concat(&ret, alloc_cs);
     
-    code_seq load_cs = code_seq_singleton(code_lri(GP, literal_offset));
+    code_seq load_cs = code_seq_singleton(code_lit(GP, literal_offset));
     code_seq_concat(&ret, load_cs);
 
     code_seq store_cs = code_seq_singleton(code_swr(FP, 0, GP));
@@ -267,7 +266,7 @@ code_seq gen_code_stmt(stmt_t *stmt) {
 
 code_seq gen_code_assignStmt(assign_stmt_t * stmt)
 {
-    code_seq ret = gen_code_expr(&stmt->expr);
+    code_seq ret = gen_code_expr(*stmt->expr);
 
 
     assert(stmt->idu != NULL);
@@ -319,7 +318,8 @@ code_seq gen_code_blockStmt(block_stmt_t *block_stmt) {
         return code_seq_empty(); 
     }
 
-    return gen_code_block(&block_stmt->block);
+    return gen_code_block(*block_stmt->block);
+
 }
 
 code_seq gen_code_condition(condition_t *cond) {
@@ -341,7 +341,7 @@ code_seq gen_code_condition(condition_t *cond) {
         case ck_rel: {
             ret = gen_code_expr(&(cond->data.rel_op_cond.expr1));
             code_seq_concat(&ret, gen_code_expr(&(cond->data.rel_op_cond.expr2)));
-            code_seq_add_to_end(&ret, code_relop(cond->data.rel_op_cond.rel_op.code));
+            code_seq_add_to_end(&ret, code_jrel(cond->data.rel_op_cond.rel_op.code));
             break;
         }
         default:
