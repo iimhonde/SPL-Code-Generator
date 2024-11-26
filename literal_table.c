@@ -33,7 +33,7 @@ void literal_table_initialize()
     literal_table_okay(); // check again
 }
 
-static void literal_table_okay()
+void literal_table_okay()
 {
     bool emp = literal_table_empty();
     assert(emp == (next_word_offset == 0));

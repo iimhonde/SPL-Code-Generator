@@ -20,6 +20,8 @@ code_seq gen_code_initialize()
 }
 
 //needs to be filled out
+static void gen_code_output_seq(BOFFILE bf, code_seq* cs){
+    while (cs != NULL) {
 static void gen_code_output_seq(BOFFILE bf, code_seq cs){
     while (!code_seq_is_empty(cs)){
        
@@ -351,6 +353,7 @@ code_seq gen_code_condition(condition_t *cond) {
 
     return ret;
 }
+*/
 
 
 
@@ -377,6 +380,7 @@ code_seq gen_code_if_stmt(if_stmt_t * stmt) {
 
     return ret;
 }
+*/
 
 
 code_seq gen_code_whileStmt(while_stmt_t *stmt) {
@@ -400,6 +404,7 @@ code_seq gen_code_whileStmt(while_stmt_t *stmt) {
 
     return ret;
 }
+*/
 
 
 
@@ -440,6 +445,7 @@ code_seq gen_code_expr(expr_t* exp)
         case expr_bin:
 	        return gen_code_binary_op_expr(&exp ->data.binary);
 	        break;
+        */
         case expr_ident:
 	        return gen_code_ident(&exp ->data.ident);
 	        break;
@@ -449,6 +455,7 @@ code_seq gen_code_expr(expr_t* exp)
         case expr_negated:
 	        return gen_code_logical_not_expr(&exp ->data.negated);
 	        break;
+        */
         default:
 	        bail_with_error("Unexpected expr_kind_e (%d) in gen_code_expr", exp ->expr_kind);
 	        break;
@@ -477,11 +484,10 @@ code_seq gen_code_op(token_t *op)
         case eqsym: case neqsym:
         case ltsym: case leqsym:
         case gtsym: case geqsym:
-	        return gen_code_rel_op(op, typ);
+	        return gen_code_rel_op(op);
 	        break;
         case plussym: case minussym: 
         case multsym: case divsym:
-	        assert(typ == float_te);
 	        return gen_code_arith_op(op);
 	        break;
         default:
@@ -525,6 +531,7 @@ code_seq gen_code_arith_op(token_t *arith_op)
     bail_with_error("TODO: no implementation of gen_code_arith_op yet!");
     return code_seq_empty();
 }
+*/
 
 code_seq gen_code_rel_op(token_t *rel_op)
 {
@@ -643,8 +650,9 @@ code_seq gen_code_logical_not_expr(expr_t *exp)
     bail_with_error("TODO: no implementation of gen_code_logical_not_expr yet!");
     return code_seq_empty();
 }
-
-static void gen_code_output_literals(BOFFILE bf)
+*/
+// added from float
+void gen_code_output_literals(BOFFILE bf)
 {
     /*
     literal_table_start_iteration();
