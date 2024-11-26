@@ -10,7 +10,6 @@
 #include "utilities.h"
 #include "regname.h"
 
-
 #define MAX_STACK 4096
 
 // initialize the code generator
@@ -20,15 +19,12 @@ code_seq gen_code_initialize()
 }
 
 //needs to be filled out
-static void gen_code_output_seq(BOFFILE bf, code_seq* cs){
-    while (cs != NULL) {
-static void gen_code_output_seq(BOFFILE bf, code_seq cs){
-    while (!code_seq_is_empty(cs)){
-       
-        bin_instr_t inst = code_seq_first(cs) -> instr;
-        instruction_write_bin_instr(bf, inst);
-        cs = code_seq_rest(cs);
-
+static void gen_code_output_seq(BOFFILE bf, code_seq cs)
+{
+    while (!code_seq_is_empty(cs)) {
+	    bin_instr_t inst = code_seq_first(cs)->instr;
+	    instruction_write_bin_instr(bf, inst);
+	    cs = code_seq_rest(cs);
     }
 }
 
@@ -39,10 +35,12 @@ static BOFHeader gen_code_program_header(code_seq main_cs){
     ret.text_length = code_seq_size(main_cs);
     int dsa = MAX(ret.text_length, 1024);
     ret.data_start_address = dsa;
+    ret.data_length = literal_table_size();
     int sba = dsa + ret.data_start_address + MAX_STACK;
     ret.stack_bottom_addr = sba;
-     return ret;
+    return ret;
 }
+
 static void gen_code_output_literals(BOFFILE bf){
     literal_table_start_iteration();
     while (literal_table_iteration_has_next()) {
@@ -61,34 +59,54 @@ static void gen_code_output_program(BOFFILE bf, code_seq main_cs){
     bof_close(bf);
 }
 
-void gen_code_program(BOFFILE bf, block_t *prog) {
-    code_seq main_cs = gen_code_block(prog);
-    gen_code_output_program(bf, main_cs);
 
+void gen_code_program(BOFFILE bf, block_t *prog) {
+    code_seq main_cs = code_seq_empty();
+
+    code_seq setup_cs = code_utils_set_up_program();
+    code_seq_concat(&main_cs, setup_cs);
+
+    /*
+    code_seq block_cs = gen_code_block(prog);
+    code_seq_concat(&main_cs, block_cs);
+    */
+
+    code_seq teardown_cs = code_utils_tear_down_program();
+    code_seq_concat(&main_cs, teardown_cs);
+    gen_code_output_program(bf, main_cs);
 }
 
 code_seq gen_code_block(block_t *block) {
-    code_seq block_cs = code_utils_set_up_program();
 
-     code_seq const_decls_cs = gen_code_const_decls(&block->const_decls);
-    code_seq_concat(&block_cs, const_decls_cs);
-    
+    code_seq ret = code_seq_empty();
+    code_seq_add_to_end(&ret, code_cpr(3, FP));
+
     code_seq var_decls_cs = gen_code_var_decls(&block->var_decls);
-    code_seq_concat(&block_cs, var_decls_cs);
+    code_seq_concat(&ret, var_decls_cs);
+    
+    code_seq const_decls_cs = gen_code_const_decls(&block->const_decls);
+    code_seq_concat(&ret, const_decls_cs);
+    
+    code_seq_concat(&ret, code_utils_save_registers_for_AR());
 
     /*Process procedure declarations in reverse order
     code_seq proc_decls_cs = gen_code_proc_decls(block.proc_decls);
     code_seq_concat(&block_cs, proc_decls_cs);
-
     */ 
-     code_seq stmt_cs = gen_code_stmts(&block->stmts);
-    code_seq_concat(&block_cs, stmt_cs);
 
-    
-    code_seq teardown_cs = code_utils_tear_down_program();
-    code_seq_concat(&block_cs, teardown_cs);
+    code_seq_concat(&ret, code_utils_restore_registers_from_AR());
 
-    return block_cs;
+    code_seq stmt_cs = gen_code_stmts(&block->stmts);
+    code_seq_concat(&ret, stmt_cs);
+
+    int var_len = (code_seq_size(ret) / 2);
+    int const_len = ((code_seq_size(ret) - var_len) / 3);
+
+    int total_len = const_len + var_len;
+
+    code_utils_deallocate_stack_space(var_len);
+
+    return ret;
 }
 
 code_seq gen_code_const_decls(const_decls_t *const_decls) {
@@ -96,9 +114,9 @@ code_seq gen_code_const_decls(const_decls_t *const_decls) {
     const_decl_t *cdp = const_decls->start;
 
     if (cdp != NULL) {
-        code_seq rest_cs = gen_code_const_decls(&(const_decls_t){.start = cdp->next});
+        code_seq rest_cs = gen_code_const_decls(cdp->next);
         code_seq_concat(&ret, rest_cs);
-
+        
         code_seq decl_cs = gen_code_const_decl(cdp);
         code_seq_concat(&ret, decl_cs);
     }
@@ -114,11 +132,11 @@ code_seq gen_code_const_decl(const_decl_t *cd) {
 
 code_seq gen_code_const_def_list(const_def_list_t *cdl) {
     code_seq ret = code_seq_empty();
-    const_def_t *cdf = cdl ->start;
+    const_def_t *cdf = cdl->start;
 
     if (cdf != NULL) {
        
-        code_seq rest_cs = gen_code_const_def_list(&(const_def_list_t){.start = cdf->next});
+        code_seq rest_cs = gen_code_const_def_list(cdf->next);
         code_seq_concat(&ret, rest_cs);
 
         
@@ -132,24 +150,23 @@ code_seq gen_code_const_def_list(const_def_list_t *cdl) {
 code_seq gen_code_const_def(const_def_t *def) {
     code_seq ret = code_seq_empty();
 
-    const char * name = def ->ident.name;
+    char * name = def->ident.name;
 
-    word_type num = def ->number.value;
+    word_type num = def->number.value;
 
     unsigned int literal_offset = literal_table_lookup(name, num);
 
     code_seq alloc_cs = code_utils_allocate_stack_space(1);
     code_seq_concat(&ret, alloc_cs);
     
-    code_seq load_cs = code_seq_singleton(code_lit(GP, literal_offset));
+    code_seq load_cs = code_seq_singleton(code_lit(GP, 0, literal_offset));
     code_seq_concat(&ret, load_cs);
 
     code_seq store_cs = code_seq_singleton(code_swr(FP, 0, GP));
     code_seq_concat(&ret, store_cs);
 
     return ret;
-}
-
+}    
 
 // generate code for var_decls_t vds to out
 code_seq gen_code_var_decls(var_decls_t *vds)
@@ -247,12 +264,16 @@ code_seq gen_code_stmt(stmt_t *stmt) {
         case block_stmt:
             result = gen_code_blockStmt(&stmt->data.block_stmt);
             break;
+        /*
         case while_stmt:
             result = gen_code_whileStmt(&stmt->data.while_stmt);
             break;
+        */
+            /*
         case if_stmt:
             result = gen_code_ifStmt(&stmt->data.if_stmt);
             break;
+            */
         case read_stmt:
             result = gen_code_readStmt(&stmt->data.read_stmt);
             break;
@@ -268,7 +289,7 @@ code_seq gen_code_stmt(stmt_t *stmt) {
 
 code_seq gen_code_assignStmt(assign_stmt_t * stmt)
 {
-    code_seq ret = gen_code_expr(*stmt->expr);
+    code_seq ret = gen_code_expr(&stmt->expr);
 
 
     assert(stmt->idu != NULL);
@@ -320,10 +341,10 @@ code_seq gen_code_blockStmt(block_stmt_t *block_stmt) {
         return code_seq_empty(); 
     }
 
-    return gen_code_block(*block_stmt->block);
-
+    return gen_code_block(&block_stmt->block);
 }
 
+/*
 code_seq gen_code_condition(condition_t *cond) {
     code_seq ret = code_seq_empty();
     label *false_label = label_create();
@@ -343,7 +364,7 @@ code_seq gen_code_condition(condition_t *cond) {
         case ck_rel: {
             ret = gen_code_expr(&(cond->data.rel_op_cond.expr1));
             code_seq_concat(&ret, gen_code_expr(&(cond->data.rel_op_cond.expr2)));
-            code_seq_add_to_end(&ret, code_jrel(cond->data.rel_op_cond.rel_op.code));
+            code_seq_add_to_end(&ret, code_relop(cond->data.rel_op_cond.rel_op.code));
             break;
         }
         default:
@@ -357,6 +378,7 @@ code_seq gen_code_condition(condition_t *cond) {
 
 
 
+/*
 code_seq gen_code_if_stmt(if_stmt_t * stmt) {
     code_seq ret = gen_code_condition(&(stmt->condition));
     code_seq then_code = gen_code_stmts(&(stmt->then_stmts));
@@ -383,6 +405,7 @@ code_seq gen_code_if_stmt(if_stmt_t * stmt) {
 */
 
 
+/*
 code_seq gen_code_whileStmt(while_stmt_t *stmt) {
     code_seq ret = code_seq_empty();
     label *start_label = label_create();
@@ -405,7 +428,6 @@ code_seq gen_code_whileStmt(while_stmt_t *stmt) {
     return ret;
 }
 */
-
 
 
 code_seq gen_code_readStmt(read_stmt_t *stmt) {
@@ -440,12 +462,11 @@ code_seq gen_code_printStmt(print_stmt_t *stmt)
 
 code_seq gen_code_expr(expr_t* exp)
 {
-    switch (exp ->expr_kind) 
+    switch (exp->expr_kind) 
     {
         case expr_bin:
 	        return gen_code_binary_op_expr(&exp ->data.binary);
 	        break;
-        */
         case expr_ident:
 	        return gen_code_ident(&exp ->data.ident);
 	        break;
@@ -453,9 +474,8 @@ code_seq gen_code_expr(expr_t* exp)
 	        return gen_code_number(&exp ->data.number);
 	        break;
         case expr_negated:
-	        return gen_code_logical_not_expr(&exp ->data.negated);
+	        return gen_code_logical_not_expr(&exp->data.negated);
 	        break;
-        */
         default:
 	        bail_with_error("Unexpected expr_kind_e (%d) in gen_code_expr", exp ->expr_kind);
 	        break;
@@ -531,7 +551,6 @@ code_seq gen_code_arith_op(token_t *arith_op)
     bail_with_error("TODO: no implementation of gen_code_arith_op yet!");
     return code_seq_empty();
 }
-*/
 
 code_seq gen_code_rel_op(token_t *rel_op)
 {
@@ -650,11 +669,11 @@ code_seq gen_code_logical_not_expr(expr_t *exp)
     bail_with_error("TODO: no implementation of gen_code_logical_not_expr yet!");
     return code_seq_empty();
 }
-*/
 // added from float
+/*
 void gen_code_output_literals(BOFFILE bf)
 {
-    /*
+    
     literal_table_start_iteration();
     while (literal_table_iteration_has_next()) 
     {
@@ -662,6 +681,7 @@ void gen_code_output_literals(BOFFILE bf)
 	    bof_write_float(bf, w);
     }
     literal_table_end_iteration();
-    */
+    
     bail_with_error("TODO: no implementation of gen_code_output_literals yet!");
 }
+*/
