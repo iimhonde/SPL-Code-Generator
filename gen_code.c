@@ -344,38 +344,6 @@ code_seq gen_code_blockStmt(block_stmt_t *block_stmt) {
     return gen_code_block(&block_stmt->block);
 }
 
-/*
-code_seq gen_code_condition(condition_t *cond) {
-    code_seq ret = code_seq_empty();
-    label *false_label = label_create();
-    label *end_label = label_create();
-
-    switch (cond->cond_kind) {
-        case ck_db: {
-            ret = gen_code_expr(&(cond->data.db_cond.dividend));
-            code_seq_concat(&ret, gen_code_expr(&(cond->data.db_cond.divisor)));
-            code_seq_add_to_end(&ret, code_div(SP, 0));
-            code_seq_add_to_end(&ret, code_beq(SP, 0, label_read(false_label)));
-            code_seq_add_to_end(&ret, code_jmpa(label_read(end_label)));
-            label_set(false_label, code_seq_size(ret));
-            label_set(end_label, code_seq_size(ret) + 1);
-            break;
-        }
-        case ck_rel: {
-            ret = gen_code_expr(&(cond->data.rel_op_cond.expr1));
-            code_seq_concat(&ret, gen_code_expr(&(cond->data.rel_op_cond.expr2)));
-            code_seq_add_to_end(&ret, code_relop(cond->data.rel_op_cond.rel_op.code));
-            break;
-        }
-        default:
-            bail_with_error("Unknown condition kind in gen_code_condition!");
-            break;
-    }
-
-    return ret;
-}
-*/
-
 
 
 /*
