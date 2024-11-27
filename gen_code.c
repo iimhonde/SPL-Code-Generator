@@ -452,22 +452,18 @@ code_seq gen_code_expr(expr_t* exp)
     return code_seq_empty();
 }
 
-code_seq gen_code_binary_op_expr(binary_op_expr_t *exp)
+code_seq gen_code_binary_op_expr(binary_op_expr_t *exp) 
 {
-    /*
-    code_seq ret = gen_code_expr(*(exp.expr1));
-    code_seq_concat(&ret, gen_code_expr(*(exp.expr2)));
-    code_seq_concat(&ret, gen_code_op(exp.op));
-    return ret;
-    */
+    code_seq ret = gen_code_expr((exp->expr1));
+    code_seq_concat(&ret, gen_code_expr(exp->expr2));
+    code_seq_concat(&ret, gen_code_op(&(exp->arith_op)));
     bail_with_error("TODO: no implementation of gen_code_binary_op_expr yet!");
     return code_seq_empty();
 }
 
-code_seq gen_code_op(token_t *op)
+code_seq gen_code_op(token_t *op) 
 {
-    /*
-    switch (op.code) 
+    switch (op->code) 
     {
         case eqsym: case neqsym:
         case ltsym: case leqsym:
@@ -479,44 +475,34 @@ code_seq gen_code_op(token_t *op)
 	        return gen_code_arith_op(op);
 	        break;
         default:
-	        bail_with_error("Unknown token code (%d) in gen_code_op", op.code);
+	        bail_with_error("Unknown token code (%d) in gen_code_op", op->code);
 	        break;
     }
-    return code_seq_empty();
-    */
     bail_with_error("TODO: no implementation of gen_code_op yet!");
     return code_seq_empty();
 }
 
-code_seq gen_code_arith_op(token_t *arith_op)
-{
-    /*
-    code_seq ret = code_pop_stack_into_reg(AT, float_te);
-    code_seq_concat(&ret, code_pop_stack_into_reg(V0, float_te));
-
+code_seq gen_code_arith_op(token_t *arith_op) {
     code_seq do_op = code_seq_empty();
-    switch (arith_op.code) 
+    switch (arith_op->code) 
     {
         case plussym:
-	        do_op = code_seq_add_to_end(do_op, code_fadd(V0, AT, V0));
+	        code_seq_add_to_end(&do_op, code_add(SP, 1, SP, 0));
 	        break;
         case minussym:
-	        do_op = code_seq_add_to_end(do_op, code_fsub(V0, AT, V0));
+	        code_seq_add_to_end(&do_op, code_sub(SP, 1, SP, 0));
 	        break;
         case multsym:
-	        do_op = code_seq_add_to_end(do_op, code_fmul(V0, AT, V0));
+	        code_seq_add_to_end(&do_op, code_mul(SP, 1));
 	        break;
         case divsym:
-	        do_op = code_seq_add_to_end(do_op, code_fdiv(V0, AT, V0));
+	        code_seq_add_to_end(&do_op, code_div(SP, 1));
 	        break;
         default:
-	        bail_with_error("Unexpected arithOp (%d) in gen_code_arith_op", arith_op.code);
+	        bail_with_error("Unexpected arithOp (%d) in gen_code_arith_op", arith_op->code);
 	        break;
     }
-    do_op = code_seq_concat(do_op, code_push_reg_on_stack(V0, float_te));
-    return code_seq_concat(&ret, do_op);
-    */
-    bail_with_error("TODO: no implementation of gen_code_arith_op yet!");
+    //bail_with_error("TODO: no implementation of gen_code_arith_op yet!");
     return code_seq_empty();
 }
 
@@ -614,12 +600,11 @@ code_seq gen_code_rel_op(token_t *rel_op)
 
 code_seq gen_code_number(number_t *num)
 {
-    /*
-    unsigned int global_offset = literal_table_lookup(num.text, num.value);
-    return code_seq_concat(code_seq_singleton(code_flw(GP, V0, global_offset)), code_push_reg_on_stack(V0, float_te));
-    */
-    bail_with_error("TODO: no implementation of gen_code_number yet!");
-    return code_seq_empty();
+    code_seq ret = code_seq_empty();
+    unsigned int global_offset = literal_table_lookup(num->text, num->value);
+    code_seq_concat(&ret, code_seq_singleton(code_cpw(SP, 0, GP, global_offset)));
+    return ret;
+    //bail_with_error("TODO: no implementation of gen_code_number yet!");
 }
 
 code_seq gen_code_logical_not_expr(negated_expr_t *exp)
