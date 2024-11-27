@@ -343,6 +343,7 @@ code_seq gen_code_assignStmt(assign_stmt_t * stmt)
     assert(stmt->idu != NULL);
     assert(id_use_get_attrs(stmt->idu) != NULL);
 
+    // get offset
     unsigned int offset_count = id_use_get_attrs(stmt->idu)->offset_count;
     assert(offset_count <= USHRT_MAX);
 
@@ -366,15 +367,17 @@ code_seq gen_code_callStmt(call_stmt_t *stmt)
     unsigned int levelsOutward = idu->levelsOutward;
     unsigned int offset = attrs->offset_count;
    
+    // generate static link
     code_seq static_link = code_utils_compute_fp(GP, levelsOutward);
     code_seq_concat(&ret, static_link);
 
+    // save registers
     code_seq_concat(&ret, code_utils_save_registers_for_AR());
 
-   
+   // add call instr
     code_seq_add_to_end(&ret, code_call(offset));
 
- 
+    // restore registers
     code_seq_concat(&ret, code_utils_restore_registers_from_AR());
 
     return ret;
@@ -384,12 +387,15 @@ code_seq gen_code_blockStmt(block_stmt_t *block_stmt)
 {
     if (block_stmt == NULL || block_stmt->block == NULL) 
     {
+        // empty or null returns empty
         return code_seq_empty(); 
     }
 
+    // generate code for block stmt
     return gen_code_block(block_stmt->block);
 }
 
+// FIX
 code_seq gen_code_if_stmt(if_stmt_t * stmt) 
 {
     /*code_seq ret = gen_code_condition(&(stmt->condition));
@@ -417,6 +423,7 @@ code_seq gen_code_if_stmt(if_stmt_t * stmt)
     return code_seq_empty();
 }
 
+// FIX
 code_seq gen_code_whileStmt(while_stmt_t *stmt) 
 {
    /* code_seq ret = code_seq_empty();
@@ -451,9 +458,11 @@ code_seq gen_code_readStmt(read_stmt_t *stmt)
     assert(stmt->idu != NULL);
     assert(id_use_get_attrs(stmt->idu) != NULL);
 
+    // get offset
     unsigned int offset = id_use_get_attrs(stmt->idu)->offset_count;
     assert(offset <= USHRT_MAX);
 
+    // generate read instr
     code *read_instr = code_rch(FP, offset); 
     code_seq_add_to_end(&ret, read_instr);
 
@@ -463,6 +472,7 @@ code_seq gen_code_readStmt(read_stmt_t *stmt)
 code_seq gen_code_printStmt(print_stmt_t *stmt)
 {
     code_seq ret = gen_code_expr(&stmt->expr);
+    // add print instr
     code_seq_concat(&ret, code_seq_singleton(code_pint(SP, 0)));
     code_seq_concat(&ret, code_utils_deallocate_stack_space(1));
 
@@ -497,9 +507,9 @@ code_seq gen_code_expr(expr_t* exp)
 // generate code for expression exp
 code_seq gen_code_binary_op_expr(binary_op_expr_t *exp) 
 {
-    code_seq ret = gen_code_expr((exp->expr1));
-    code_seq_concat(&ret, gen_code_expr(exp->expr2));
-    code_seq_concat(&ret, gen_code_op(&(exp->arith_op)));
+    code_seq ret = gen_code_expr((exp->expr1)); // first operand
+    code_seq_concat(&ret, gen_code_expr(exp->expr2)); // second operand
+    code_seq_concat(&ret, gen_code_op(&(exp->arith_op))); // operation
 
     bail_with_error("TODO: no implementation of gen_code_binary_op_expr yet!");
 
