@@ -494,9 +494,11 @@ code_seq gen_code_arith_op(token_t *arith_op) {
 	        break;
         case multsym:
 	        code_seq_add_to_end(&do_op, code_mul(SP, 1));
+            code_seq_add_to_end(&do_op, code_cflo(SP, 1));
 	        break;
         case divsym:
 	        code_seq_add_to_end(&do_op, code_div(SP, 1));
+            code_seq_add_to_end(&do_op, code_cflo(SP, 1));
 	        break;
         default:
 	        bail_with_error("Unexpected arithOp (%d) in gen_code_arith_op", arith_op->code);
