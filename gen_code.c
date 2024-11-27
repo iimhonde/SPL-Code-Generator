@@ -570,9 +570,9 @@ code_seq gen_code_binary_op_expr(binary_op_expr_t exp)
     code_seq_concat(&ret, gen_code_expr(*(exp.expr2))); // second operand
     code_seq_concat(&ret, gen_code_op((exp.arith_op))); // operation
 
-    bail_with_error("TODO: no implementation of gen_code_binary_op_expr yet!");
+    //bail_with_error("TODO: no implementation of gen_code_binary_op_expr yet!");
 
-    return code_seq_empty();
+    return ret;
 }
 
 // generate code to apply op to 2nd from top and top of the stack
@@ -593,7 +593,7 @@ code_seq gen_code_op(token_t op)
 	        bail_with_error("Unknown token code (%d) in gen_code_op", op.code);
 	        break;
     }
-    bail_with_error("TODO: no implementation of gen_code_op yet!");
+    //bail_with_error("TODO: no implementation of gen_code_op yet!");
     return code_seq_empty();
 }
 
@@ -664,8 +664,8 @@ code_seq gen_code_rel_op(token_t rel_op)
 	        bail_with_error("Unknown token code (%d) in gen_code_rel_op", rel_op.code);
 	        break;
     }
-    bail_with_error("TODO: no implementation of gen_code_rel_op yet!");
-    return code_seq_empty();
+    //bail_with_error("TODO: no implementation of gen_code_rel_op yet!");
+    return do_op;
 }
 
 // generate code to put given number on top of stack
