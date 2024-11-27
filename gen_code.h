@@ -79,15 +79,15 @@ code_seq gen_code_binary_op_expr(binary_op_expr_t exp);
 code_seq gen_code_logical_not_expr(negated_expr_t exp);
 
 // Generate code for a relational operation
-code_seq gen_code_rel_op(token_t *rel_op);
+code_seq gen_code_rel_op(token_t rel_op);
 
 // Generate code for an arithmetic operation
-code_seq gen_code_arith_op(token_t *arith_op);
+code_seq gen_code_arith_op(token_t arith_op);
 
 // Generate code for a number
 code_seq gen_code_number(number_t num);
 
 // Generate code for an operator
-code_seq gen_code_op(token_t *op);
+code_seq gen_code_op(token_t op);
 
 #endif // GEN_CODE_H

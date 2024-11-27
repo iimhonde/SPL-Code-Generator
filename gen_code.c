@@ -557,17 +557,17 @@ code_seq gen_code_binary_op_expr(binary_op_expr_t exp)
 {
     code_seq ret = gen_code_expr(*(exp.expr1)); // first operand
     code_seq_concat(&ret, gen_code_expr(*(exp.expr2))); // second operand
-    code_seq_concat(&ret, gen_code_op(&(exp.arith_op))); // operation
+    code_seq_concat(&ret, gen_code_op((exp.arith_op))); // operation
 
-    bail_with_error("TODO: no implementation of gen_code_binary_op_expr yet!");
+    //bail_with_error("TODO: no implementation of gen_code_binary_op_expr yet!");
 
-    return code_seq_empty();
+    return ret;
 }
 
 // generate code to apply op to 2nd from top and top of the stack
-code_seq gen_code_op(token_t *op) 
+code_seq gen_code_op(token_t op) 
 {
-    switch (op->code) 
+    switch (op.code) 
     {
         case eqsym: case neqsym:
         case ltsym: case leqsym:
@@ -579,18 +579,18 @@ code_seq gen_code_op(token_t *op)
 	        return gen_code_arith_op(op);
 	        break;
         default:
-	        bail_with_error("Unknown token code (%d) in gen_code_op", op->code);
+	        bail_with_error("Unknown token code (%d) in gen_code_op", op.code);
 	        break;
     }
-    bail_with_error("TODO: no implementation of gen_code_op yet!");
+    //bail_with_error("TODO: no implementation of gen_code_op yet!");
     return code_seq_empty();
 }
 
 // generate code for floating-point arith_op
-code_seq gen_code_arith_op(token_t *arith_op) 
+code_seq gen_code_arith_op(token_t arith_op) 
 {
     code_seq do_op = code_seq_empty();
-    switch (arith_op->code) 
+    switch (arith_op.code) 
     {
         case plussym:
 	        code_seq_add_to_end(&do_op, code_add(SP, 1, SP, 0));
@@ -607,104 +607,54 @@ code_seq gen_code_arith_op(token_t *arith_op)
             code_seq_add_to_end(&do_op, code_cflo(SP, 1));
 	        break;
         default:
-	        bail_with_error("Unexpected arithOp (%d) in gen_code_arith_op", arith_op->code);
+	        bail_with_error("Unexpected arithOp (%d) in gen_code_arith_op", arith_op.code);
 	        break;
     }
+
     //bail_with_error("TODO: no implementation of gen_code_arith_op yet!");
-    return code_seq_empty();
+    return do_op;
 }
 
 // generate code for rel_op
-code_seq gen_code_rel_op(token_t *rel_op)
+code_seq gen_code_rel_op(token_t rel_op)
 {
-    /*
-    code_seq ret = code_pop_stack_into_reg(AT, typ);
-    code_seq_concat(&ret, code_pop_stack_into_reg(V0, typ));
-
     code_seq do_op = code_seq_empty();
     switch (rel_op.code) 
     {
         case eqsym: 
-	        if (typ == float_te) 
-            {
-	            do_op = code_seq_singleton(code_bfeq(V0, AT, 2));
-	        } 
-            else 
-            {
-	            do_op = code_seq_singleton(code_beq(V0, AT, 2));
-	        }
+	        code_seq_add_to_end(&do_op, code_beq(SP, 0, 1));
 	        break;
+
         case neqsym:
-	        if (typ == float_te) 
-            {
-	            do_op = code_seq_singleton(code_bfne(V0, AT, 2));
-	        } 
-            else 
-            {
-	            do_op = code_seq_singleton(code_bne(V0, AT, 2));
-	        }
+            code_seq_add_to_end(&do_op, code_bne(SP, 0, 1));
 	        break;
+
         case ltsym:
-	        if (typ == float_te) 
-            {
-	            do_op = code_seq_singleton(code_fsub(V0, AT, V0));
-	            do_op = code_seq_add_to_end(do_op, code_bfltz(V0, 2));
-	        } 
-            else 
-            {
-	            do_op = code_seq_singleton(code_sub(V0, AT, V0));
-	            do_op = code_seq_add_to_end(do_op, code_bltz(V0, 2));
-	        }
+            code_seq_add_to_end(&do_op, code_sub(SP, 0, SP, 1));
+	        code_seq_add_to_end(&do_op, code_bltz(SP, 0, 1));
 	        break;
+
         case leqsym:
-	        if (typ == float_te) 
-            {
-	            do_op = code_seq_singleton(code_fsub(V0, AT, V0));
-	            do_op = code_seq_add_to_end(do_op, code_bflez(V0, 2));
-	        } 
-            else 
-            {
-	            do_op = code_seq_singleton(code_sub(V0, AT, V0));
-	            do_op = code_seq_add_to_end(do_op, code_blez(V0, 2));
-	        }
+            code_seq_add_to_end(&do_op, code_sub(SP, 0, SP, 1));
+	        code_seq_add_to_end(&do_op, code_blez(SP, 0, 1));
 	        break;
+
         case gtsym:
-	        if (typ == float_te) 
-            {
-	            do_op = code_seq_singleton(code_fsub(V0, AT, V0));
-	            do_op = code_seq_add_to_end(do_op, code_bfgtz(V0, 2));
-	        } 
-            else 
-            {
-	            do_op = code_seq_singleton(code_sub(V0, AT, V0));
-	            do_op = code_seq_add_to_end(do_op, code_bgtz(V0, 2));
-	        }
+            code_seq_add_to_end(&do_op, code_sub(SP, 0, SP, 1));
+	        code_seq_add_to_end(&do_op, code_bgtz(SP, 0, 1));
 	        break;
+
         case geqsym:
-	        if (typ == float_te) 
-            {
-	            do_op = code_seq_singleton(code_fsub(V0, AT, V0));
-	            do_op = code_seq_add_to_end(do_op, code_bfgez(V0, 2));
-	        } 
-            else 
-            {
-	            do_op = code_seq_singleton(code_sub(V0, AT, V0));
-	            do_op = code_seq_add_to_end(do_op, code_bgez(V0, 2));
-	        }
+            code_seq_add_to_end(&do_op, code_sub(SP, 0, SP, 1));
+	        code_seq_add_to_end(&do_op, code_bgez(SP, 0, 1));
 	        break;
+
         default:
 	        bail_with_error("Unknown token code (%d) in gen_code_rel_op", rel_op.code);
 	        break;
     }
-    code_seq_concat(&ret, do_op);
-    code_seq_add_to_end(&ret, code_add(0, 0, AT));
-    code_seq_add_to_end(&ret, code_beq(0, 0, 1));
-    code_seq_add_to_end(&ret, code_addi(0, AT, 1));
-    code_seq_concat(&ret, code_push_reg_on_stack(AT, bool_te));
-    return ret;
-    */
-    bail_with_error("TODO: no implementation of gen_code_rel_op yet!");
-    return code_seq_empty();
+    //bail_with_error("TODO: no implementation of gen_code_rel_op yet!");
+    return do_op;
 }
 
 // generate code to put given number on top of stack
