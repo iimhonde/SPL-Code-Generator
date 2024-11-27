@@ -19,7 +19,10 @@
 // initialize code generator
 void gen_code_initialize()
 {
+    printf("Initializing literal table...\n");
     literal_table_initialize();
+    printf("Literal table initialized.\n");
+
 }
 
 // write all instructions in cs to bf in order
@@ -59,7 +62,7 @@ static void gen_code_output_literals(BOFFILE bf)
         // get next literal
         word_type w = literal_table_iteration_next();
 
-        // debug_print("Writing literal %f to BOF file\n", w);
+         debug_print("Writing literal %f to BOF file\n", w);
         // write literal to BOFFILE
         bof_write_word(bf,w);
     }
@@ -71,7 +74,10 @@ static void gen_code_output_program(BOFFILE bf, code_seq main_cs)
 {
     // generate header
     BOFHeader bfh = gen_code_program_header(main_cs);
+    printf("Writing header\n");
     bof_write_header(bf, bfh);
+    printf("Header written\n");
+
     // write sequence of instructions
     gen_code_output_seq(bf, main_cs);
     // write literals
@@ -190,7 +196,7 @@ code_seq gen_code_const_def(const_def_t *def)
     word_type num = def->number.value; // get value
 
     unsigned int literal_offset = literal_table_lookup(name, num); // get offset
-
+    printf("Adding literal: %s = %d\n", name, num);
     // allocate space
     code_seq alloc_cs = code_utils_allocate_stack_space(1);
     code_seq_concat(&ret, alloc_cs);
@@ -711,6 +717,7 @@ code_seq gen_code_number(number_t *num)
 {
     code_seq ret = code_seq_empty();
     unsigned int global_offset = literal_table_lookup(num->text, num->value);
+    printf("Adding literal: %s = %d\n", num->text, num->value);
     code_seq_concat(&ret, code_seq_singleton(code_cpw(SP, 0, GP, global_offset)));
 
     return ret;
