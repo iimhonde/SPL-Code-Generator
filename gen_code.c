@@ -399,45 +399,34 @@ code_seq gen_code_callStmt(call_stmt_t stmt)
 
     return ret;
 }
-code_seq gen_code_ifStmt(if_stmt_t stmt) {
-    
-    code_seq ret = code_seq_empty();
 
-    condition_t condition = stmt.condition;
-  
-    assert(condition.cond_kind == ck_rel);
+code_seq gen_code_if_stmt(if_stmt_t stmt) {
+    assert(stmt.condition.cond_kind == ck_rel);
 
-    code_seq operand1 = gen_code_expr(condition.data.rel_op_cond.expr1);
-    code_seq_concat(&ret, operand1);
+    code_seq ret = code_utils_allocate_stack_space(1); // Allocate space for the condition result
 
-    code_seq operand2 = gen_code_expr(condition.data.rel_op_cond.expr2);
-    code_seq_concat(&ret, operand2);
+    // Generate code for the first operand (expr1)
+    number_t val1 = stmt.condition.data.rel_op_cond.expr1.data.number;
+    word_type num1 = val1.value;
+    const char *name1 = val1.text;
+    unsigned int offset1 = literal_table_lookup(name1, num1);
 
-    code_seq sub_code = code_seq_singleton(code_sub(GP, 0, FP, 0));
-    code_seq_concat(&ret, sub_code);
+    code_seq_add_to_end(&ret, code_lit(SP, 0, offset1));
+    code_seq_add_to_end(&ret, code_cpw(SP, 0, GP, offset1));
 
-    int else_label = code_seq_size(ret) + 1;
-    int end_label = else_label + 1;
+    // Generate code for the second operand (expr2)
+    number_t val2 = stmt.condition.data.rel_op_cond.expr2.data.number;
+    word_type num2 = val2.value;
+    const char *name2 = val2.text;
+    unsigned int offset2 = literal_table_lookup(name2, num2);
 
-    code_seq_concat(&ret, code_seq_singleton(code_bltz(GP, 0, else_label)));
-    code_seq_concat(&ret, code_seq_singleton(code_beq(GP, 0, else_label)));
+    code_seq_add_to_end(&ret, code_lit(SP, 0, offset2));
+    code_seq_add_to_end(&ret, code_cpw(SP, 0, GP, offset2));
 
-    // Pass then_stmts directly
-    assert(stmt.then_stmts != NULL);
-    code_seq then_code = gen_code_stmts(*(stmt.then_stmts));
-    code_seq_concat(&ret, then_code);
-
-    code_seq_concat(&ret, code_seq_singleton(code_jrel(end_label)));
-
-    // Pass else_stmts directly
-    if (stmt.else_stmts != NULL) {
-        code_seq else_code = gen_code_stmts(*(stmt.else_stmts));
-        code_seq_concat(&ret, else_code);
-    }
-
-    return ret;
+   word_type diff = num2 - num1;
+   if ()
+   
 }
-
 /*code_seq gen_code_if_stmt(if_stmt_t * stmt) {
     /*code_seq ret = gen_code_condition(&(stmt->condition));
     code_seq then_code = gen_code_stmts(&(stmt->then_stmts));
@@ -512,13 +501,13 @@ code_seq gen_code_readStmt(read_stmt_t stmt)
 
 code_seq gen_code_printStmt(print_stmt_t stmt)
 {
-    code_seq ret = code_seq_empty();
+    number_t number = stmt.expr.data.number;
+    unsigned int ofst = literal_table_lookup(number.text, number.value);
 
-    code_seq expr_cs = gen_code_expr(stmt.expr); 
-    code_seq_concat(&ret, expr_cs);
-
-    code_seq alloc_cs = code_utils_allocate_stack_space(1);
-    code_seq_concat(&ret, alloc_cs);
+    code_seq ret =code_utils_allocate_stack_space(1);
+    
+    code_seq load_cs = code_seq_singleton(code_cpw(SP, 0, GP, ofst));
+    code_seq_concat(&ret, load_cs);
 
     code_seq pint_cs = code_seq_singleton(code_pint(SP, 0));
     code_seq_concat(&ret, pint_cs);
@@ -723,7 +712,7 @@ code_seq gen_code_number(number_t num)
 {
     code_seq ret = code_seq_empty();
     unsigned int global_offset = literal_table_lookup(num.text, num.value);
-    //debug_print("Adding literal: %s = %d\n", num.text, num.value);
+    //debug_print("Adding literal: %s = %d, Lookup offset: %u\n", num.text, num.value, global_offset);
     code_seq_concat(&ret, code_seq_singleton(code_cpw(SP, 0, GP, global_offset)));
 
     return ret;
