@@ -19,9 +19,9 @@
 // initialize code generator
 void gen_code_initialize()
 {
-    printf("Initializing literal table...\n");
+    //debug_print("Initializing literal table...\n");
     literal_table_initialize();
-    printf("Literal table initialized.\n");
+    //debug_print("Literal table initialized.\n");
 
 }
 
@@ -62,7 +62,7 @@ static void gen_code_output_literals(BOFFILE bf)
         // get next literal
         word_type w = literal_table_iteration_next();
 
-         debug_print("Writing literal %f to BOF file\n", w);
+         //debug_print("Writing literal %f to BOF file\n", w);
         // write literal to BOFFILE
         bof_write_word(bf,w);
     }
@@ -74,10 +74,7 @@ static void gen_code_output_program(BOFFILE bf, code_seq main_cs)
 {
     // generate header
     BOFHeader bfh = gen_code_program_header(main_cs);
-    printf("Writing header\n");
     bof_write_header(bf, bfh);
-    printf("Header written\n");
-
     // write sequence of instructions
     gen_code_output_seq(bf, main_cs);
     // write literals
@@ -85,19 +82,21 @@ static void gen_code_output_program(BOFFILE bf, code_seq main_cs)
     bof_close(bf);
 }
 
+
 // generate code for prog into bf
-void gen_code_program(BOFFILE bf, block_t *prog) 
+void gen_code_program(BOFFILE bf, block_t prog) 
 {
+    //debug_print("gen_code_program: stmts_kind = %d\n", prog.stmts.stmts_kind);
     code_seq main_cs = code_seq_empty();
 
     // setup code sequence
     code_seq setup_cs = code_utils_set_up_program();
     code_seq_concat(&main_cs, setup_cs);
 
-    /*
+    
     code_seq block_cs = gen_code_block(prog);
     code_seq_concat(&main_cs, block_cs);
-    */
+
 
     // teardown code sequence
     code_seq teardown_cs = code_utils_tear_down_program();
@@ -108,19 +107,17 @@ void gen_code_program(BOFFILE bf, block_t *prog)
 }
 
 // generate code for block (variable declarations, constants, statements)
-code_seq gen_code_block(block_t *block) 
+code_seq gen_code_block(block_t block) 
 {
+    //debug_print("Entering block\n");
     code_seq ret = code_seq_empty();
-    
-    // save frame pointer
-    code_seq_add_to_end(&ret, code_cpr(3, FP));
 
     // generate code for variable declarations
-    code_seq var_decls_cs = gen_code_var_decls(&block->var_decls);
+    code_seq var_decls_cs = gen_code_var_decls(block.var_decls);
     code_seq_concat(&ret, var_decls_cs);
     
     // generate code for constant declaration
-    code_seq const_decls_cs = gen_code_const_decls(&block->const_decls);
+    code_seq const_decls_cs = gen_code_const_decls(block.const_decls);
     code_seq_concat(&ret, const_decls_cs);
     
     code_seq_concat(&ret, code_utils_save_registers_for_AR());
@@ -128,12 +125,17 @@ code_seq gen_code_block(block_t *block)
     code_seq proc_decls_cs = gen_code_proc_decls(block.proc_decls);
     code_seq_concat(&block_cs, proc_decls_cs);
     */ 
-    code_seq_concat(&ret, code_utils_restore_registers_from_AR());
 
-    // generate code for statements
-    code_seq stmt_cs = gen_code_stmts(&block->stmts);
+   // generate code for statements
+   //debug_print("Before gen_code_stmts: stmts_kind = %d\n", block.stmts.stmts_kind);
+
+    code_seq stmt_cs = gen_code_stmts(block.stmts);
     code_seq_concat(&ret, stmt_cs);
 
+
+    code_seq_concat(&ret, code_utils_restore_registers_from_AR());
+
+    
     int var_len = (code_seq_size(ret) / 2);
     int const_len = ((code_seq_size(ret) - var_len) / 3);
     int total_len = const_len + var_len;
@@ -144,15 +146,15 @@ code_seq gen_code_block(block_t *block)
 }
 
 // generate code for constant declarations
-code_seq gen_code_const_decls(const_decls_t *const_decls) 
+code_seq gen_code_const_decls(const_decls_t const_decls) 
 {
     code_seq ret = code_seq_empty();
-    const_decl_t *cdp = const_decls->start;
+    const_decl_t *cdp = const_decls.start;
 
     if (cdp != NULL) 
     {
         // generate code for first const decl
-        code_seq decl_cs = gen_code_const_decl(cdp);
+        code_seq decl_cs = gen_code_const_decl(*cdp);
         // add to code sequence
         code_seq_concat(&ret, decl_cs);
         // move to next const decl
@@ -163,21 +165,21 @@ code_seq gen_code_const_decls(const_decls_t *const_decls)
 }
 
 // generate code for a single constant declaration
-code_seq gen_code_const_decl(const_decl_t *cd) 
+code_seq gen_code_const_decl(const_decl_t cd) 
 {
-    return gen_code_const_def_list(&cd -> const_def_list);
+    return gen_code_const_def_list(cd.const_def_list);
 }
 
 // generate code for list of constant definitions
-code_seq gen_code_const_def_list(const_def_list_t *cdl) 
+code_seq gen_code_const_def_list(const_def_list_t cdl) 
 {
     code_seq ret = code_seq_empty();
-    const_def_t *cdf = cdl->start;
+    const_def_t *cdf = cdl.start;
 
     if (cdf != NULL) 
     {
         // generate code for first
-        code_seq def_cs = gen_code_const_def(cdf);
+        code_seq def_cs = gen_code_const_def(*cdf);
         // add to code sequence
         code_seq_concat(&ret, def_cs);
         // move to next const decl
@@ -188,15 +190,15 @@ code_seq gen_code_const_def_list(const_def_list_t *cdl)
 }
 
 // generate code for single constant definition
-code_seq gen_code_const_def(const_def_t *def) 
+code_seq gen_code_const_def(const_def_t def) 
 {
     code_seq ret = code_seq_empty();
 
-    const char * name = def->ident.name; // get name
-    word_type num = def->number.value; // get value
+    const char * name = def.ident.name; // get name
+    word_type num = def.number.value; // get value
 
     unsigned int literal_offset = literal_table_lookup(name, num); // get offset
-    printf("Adding literal: %s = %d\n", name, num);
+    //debug_print("Adding literal: %s = %d\n", name, num);
     // allocate space
     code_seq alloc_cs = code_utils_allocate_stack_space(1);
     code_seq_concat(&ret, alloc_cs);
@@ -213,15 +215,15 @@ code_seq gen_code_const_def(const_def_t *def)
 }    
 
 // generate code for var_decls_t vds to out
-code_seq gen_code_var_decls(var_decls_t *vds)
+code_seq gen_code_var_decls(var_decls_t vds)
 {
     code_seq ret = code_seq_empty();
-    var_decl_t *vdp = vds ->var_decls;
+    var_decl_t *vdp = vds.var_decls;
 
     while (vdp != NULL) 
     {
         // generate code for single
-        code_seq varDecl = gen_code_var_decl(vdp);
+        code_seq varDecl = gen_code_var_decl(*vdp);
         // add to code sequence
 	    code_seq_concat(&varDecl, ret);
         // move to next var decl
@@ -231,17 +233,17 @@ code_seq gen_code_var_decls(var_decls_t *vds)
 }
 
 // generate code for single <var-decl>, vd
-code_seq gen_code_var_decl(var_decl_t *vd)
+code_seq gen_code_var_decl(var_decl_t vd)
 {
-    return gen_code_idents(&vd ->ident_list);
+    return gen_code_idents(vd.ident_list);
 }
 
 //FIX ENTIRE FUNCTION
 // generate code for identififers in idents with type vt in reverse
-code_seq gen_code_idents(ident_list_t *ids)
+code_seq gen_code_idents(ident_list_t ids)
 {
     code_seq ret = code_seq_empty();
-    ident_t *idp = ids ->start;
+    ident_t *idp = ids.start;
     
     while (idp != NULL) 
     {
@@ -261,11 +263,11 @@ code_seq gen_code_idents(ident_list_t *ids)
 
 //FIX
 // generate code to put value of given identifier
-code_seq gen_code_ident(ident_t *id) 
+code_seq gen_code_ident(ident_t id) 
 {
-    assert(id->idu != NULL); 
-    id_attrs *attrs = id_use_get_attrs(id->idu);
-    id_use *idu = id -> idu;
+    assert(id.idu != NULL); 
+    id_attrs *attrs = id_use_get_attrs(id.idu);
+    id_use *idu = id.idu;
     assert(attrs != NULL);
 
     unsigned int levelsOutward = idu->levelsOutward;
@@ -284,15 +286,19 @@ code_seq gen_code_ident(ident_t *id)
 }
 
 // generate code for list of statments given by stmts
-code_seq gen_code_stmts(stmts_t *stmts) 
+code_seq gen_code_stmts(stmts_t stmts) 
 {
+    //debug_print("looking up statements\n");
     code_seq stmts_cs = code_seq_empty();
+    //debug_print("Statement kind: %d\n", stmts.stmts_kind);
 
-    if (stmts->stmts_kind != empty_stmts_e) 
+    if (stmts.stmts_kind != empty_stmts_e) 
     {
-        stmt_t *stmt = stmts->stmt_list.start;
+        //debug_print("Statements kind: %d\n", stmts.stmts_kind);
+        stmt_t *stmt = stmts.stmt_list.start;
         while (stmt != NULL) 
         {
+            //debug_print("lets check this stmt");
             // generate for single stmt
             code_seq stmt_cs = gen_code_stmt(stmt);
             // add to code sequence
@@ -301,6 +307,7 @@ code_seq gen_code_stmts(stmts_t *stmts)
             stmt = stmt->next; 
         }
     }
+    //debug_print("parsed through statements");
 
     return stmts_cs;
 }
@@ -313,13 +320,13 @@ code_seq gen_code_stmt(stmt_t *stmt)
     switch (stmt->stmt_kind) 
     {
         case assign_stmt:
-            result = gen_code_assignStmt(&stmt->data.assign_stmt);
+            result = gen_code_assignStmt(stmt->data.assign_stmt);
             break;
         case call_stmt:
-            result = gen_code_callStmt(&stmt->data.call_stmt);
+            result = gen_code_callStmt(stmt->data.call_stmt);
             break;
         case block_stmt:
-            result = gen_code_blockStmt(&stmt->data.block_stmt);
+            result = gen_code_blockStmt(stmt->data.block_stmt);
             break;
         /*
         case while_stmt:
@@ -328,14 +335,14 @@ code_seq gen_code_stmt(stmt_t *stmt)
         */
             
         case if_stmt:
-            result = gen_code_ifStmt(&stmt->data.if_stmt);
+            result = gen_code_ifStmt(stmt->data.if_stmt);
             break;
             
         case read_stmt:
-            result = gen_code_readStmt(&stmt->data.read_stmt);
+            result = gen_code_readStmt(stmt->data.read_stmt);
             break;
         case print_stmt:
-            result = gen_code_printStmt(&stmt->data.print_stmt);
+            result = gen_code_printStmt(stmt->data.print_stmt);
             break;
         default:
             bail_with_error("Call to gen_code_stmt with an AST that is not a statement!");
@@ -346,15 +353,15 @@ code_seq gen_code_stmt(stmt_t *stmt)
 
 // *** generate code for stmts ***
 
-code_seq gen_code_assignStmt(assign_stmt_t * stmt)
+code_seq gen_code_assignStmt(assign_stmt_t  stmt)
 {
-    code_seq ret = gen_code_expr(stmt->expr);
+    code_seq ret = gen_code_expr(*(stmt.expr));
 
-    assert(stmt->idu != NULL);
-    assert(id_use_get_attrs(stmt->idu) != NULL);
+    assert(stmt.idu != NULL);
+    assert(id_use_get_attrs(stmt.idu) != NULL);
 
     // get offset
-    unsigned int offset_count = id_use_get_attrs(stmt->idu)->offset_count;
+    unsigned int offset_count = id_use_get_attrs(stmt.idu)->offset_count;
     assert(offset_count <= USHRT_MAX);
 
     // store value
@@ -364,13 +371,13 @@ code_seq gen_code_assignStmt(assign_stmt_t * stmt)
     return ret;
 }
 
-code_seq gen_code_callStmt(call_stmt_t *stmt) 
+code_seq gen_code_callStmt(call_stmt_t stmt) 
 {
     code_seq ret = code_seq_empty();
 
-    assert(stmt->idu != NULL);
+    assert(stmt.idu != NULL);
 
-    id_use *idu = stmt->idu;
+    id_use *idu = stmt.idu;
     id_attrs *attrs = id_use_get_attrs(idu);
     assert(attrs != NULL);
 
@@ -392,19 +399,18 @@ code_seq gen_code_callStmt(call_stmt_t *stmt)
 
     return ret;
 }
-code_seq gen_code_ifStmt(if_stmt_t *stmt) {
-    assert(stmt != NULL);
-
+code_seq gen_code_ifStmt(if_stmt_t stmt) {
+    
     code_seq ret = code_seq_empty();
 
-    condition_t *condition = &stmt->condition;
-    assert(condition != NULL);
-    assert(condition->cond_kind == ck_rel);
+    condition_t condition = stmt.condition;
+  
+    assert(condition.cond_kind == ck_rel);
 
-    code_seq operand1 = gen_code_expr(&condition->data.rel_op_cond.expr1);
+    code_seq operand1 = gen_code_expr(condition.data.rel_op_cond.expr1);
     code_seq_concat(&ret, operand1);
 
-    code_seq operand2 = gen_code_expr(&condition->data.rel_op_cond.expr2);
+    code_seq operand2 = gen_code_expr(condition.data.rel_op_cond.expr2);
     code_seq_concat(&ret, operand2);
 
     code_seq sub_code = code_seq_singleton(code_sub(GP, 0, FP, 0));
@@ -417,15 +423,15 @@ code_seq gen_code_ifStmt(if_stmt_t *stmt) {
     code_seq_concat(&ret, code_seq_singleton(code_beq(GP, 0, else_label)));
 
     // Pass then_stmts directly
-    assert(stmt->then_stmts != NULL);
-    code_seq then_code = gen_code_stmts(stmt->then_stmts);
+    assert(stmt.then_stmts != NULL);
+    code_seq then_code = gen_code_stmts(*(stmt.then_stmts));
     code_seq_concat(&ret, then_code);
 
     code_seq_concat(&ret, code_seq_singleton(code_jrel(end_label)));
 
     // Pass else_stmts directly
-    if (stmt->else_stmts != NULL) {
-        code_seq else_code = gen_code_stmts(stmt->else_stmts);
+    if (stmt.else_stmts != NULL) {
+        code_seq else_code = gen_code_stmts(*(stmt.else_stmts));
         code_seq_concat(&ret, else_code);
     }
 
@@ -439,7 +445,7 @@ code_seq gen_code_ifStmt(if_stmt_t *stmt) {
 
     code_seq else_code = code_seq_empty();
     int else_code_len = 0;
-    if (stmt->else_stmts != NULL && stmt->else_stmts->stmts_kind != empty_stmts_e) {
+    if (stmt->else_stmts != NULL && stmt->else_stmts.stmts_kind != empty_stmts_e) {
         else_code = gen_code_stmts(stmt->else_stmts);
         else_code_len = code_seq_size(else_code);
     }
@@ -460,7 +466,7 @@ code_seq gen_code_ifStmt(if_stmt_t *stmt) {
 
 
 
-code_seq gen_code_whileStmt(while_stmt_t *stmt) {
+code_seq gen_code_whileStmt(while_stmt_t stmt) {
    /* code_seq ret = code_seq_empty();
     label *start_label = label_create();
     label *end_label = label_create();
@@ -486,15 +492,15 @@ code_seq gen_code_whileStmt(while_stmt_t *stmt) {
 
 }
 
-code_seq gen_code_readStmt(read_stmt_t *stmt) 
+code_seq gen_code_readStmt(read_stmt_t stmt) 
 {
     code_seq ret = code_seq_empty();
     
-    assert(stmt->idu != NULL);
-    assert(id_use_get_attrs(stmt->idu) != NULL);
+    assert(stmt.idu != NULL);
+    assert(id_use_get_attrs(stmt.idu) != NULL);
 
     // get offset
-    unsigned int offset = id_use_get_attrs(stmt->idu)->offset_count;
+    unsigned int offset = id_use_get_attrs(stmt.idu)->offset_count;
     assert(offset <= USHRT_MAX);
 
     // generate read instr
@@ -504,11 +510,11 @@ code_seq gen_code_readStmt(read_stmt_t *stmt)
     return ret;
 }
 
-code_seq gen_code_printStmt(print_stmt_t *stmt)
+code_seq gen_code_printStmt(print_stmt_t stmt)
 {
     code_seq ret = code_seq_empty();
 
-    code_seq expr_cs = gen_code_expr(&stmt->expr); 
+    code_seq expr_cs = gen_code_expr(stmt.expr); 
     code_seq_concat(&ret, expr_cs);
 
     code_seq alloc_cs = code_utils_allocate_stack_space(1);
@@ -524,33 +530,33 @@ code_seq gen_code_printStmt(print_stmt_t *stmt)
 }
 
 
-code_seq gen_code_blockStmt(block_stmt_t *block_stmt) {
+code_seq gen_code_blockStmt(block_stmt_t block_stmt) {
   
-    if (block_stmt == NULL || block_stmt->block == NULL) {
+    if (block_stmt.block == NULL) {
         return code_seq_empty(); 
     }
 
-    return gen_code_block(block_stmt->block);
+    return gen_code_block(*(block_stmt.block));
 }
 
-code_seq gen_code_expr(expr_t* exp)
+code_seq gen_code_expr(expr_t exp)
 {
-    switch (exp->expr_kind) 
+    switch (exp.expr_kind) 
     {
         case expr_bin:
-	        return gen_code_binary_op_expr(&exp ->data.binary);
+	        return gen_code_binary_op_expr(exp.data.binary);
 	        break;
         case expr_ident:
-	        return gen_code_ident(&exp ->data.ident);
+	        return gen_code_ident(exp.data.ident);
 	        break;
         case expr_number:
-	        return gen_code_number(&exp ->data.number);
+	        return gen_code_number(exp.data.number);
 	        break;
         case expr_negated:
-	        return gen_code_logical_not_expr(&exp->data.negated);
+	        return gen_code_logical_not_expr(exp.data.negated);
 	        break;
         default:
-	        bail_with_error("Unexpected expr_kind_e (%d) in gen_code_expr", exp ->expr_kind);
+	        bail_with_error("Unexpected expr_kind_e (%d) in gen_code_expr", exp.expr_kind);
 	        break;
     }
     // never happens, but suppresses a warning from gcc
@@ -558,11 +564,11 @@ code_seq gen_code_expr(expr_t* exp)
 }
 
 // generate code for expression exp
-code_seq gen_code_binary_op_expr(binary_op_expr_t *exp) 
+code_seq gen_code_binary_op_expr(binary_op_expr_t exp) 
 {
-    code_seq ret = gen_code_expr((exp->expr1)); // first operand
-    code_seq_concat(&ret, gen_code_expr(exp->expr2)); // second operand
-    code_seq_concat(&ret, gen_code_op(&(exp->arith_op))); // operation
+    code_seq ret = gen_code_expr(*(exp.expr1)); // first operand
+    code_seq_concat(&ret, gen_code_expr(*(exp.expr2))); // second operand
+    code_seq_concat(&ret, gen_code_op(&(exp.arith_op))); // operation
 
     bail_with_error("TODO: no implementation of gen_code_binary_op_expr yet!");
 
@@ -713,11 +719,11 @@ code_seq gen_code_rel_op(token_t *rel_op)
 }
 
 // generate code to put given number on top of stack
-code_seq gen_code_number(number_t *num)
+code_seq gen_code_number(number_t num)
 {
     code_seq ret = code_seq_empty();
-    unsigned int global_offset = literal_table_lookup(num->text, num->value);
-    printf("Adding literal: %s = %d\n", num->text, num->value);
+    unsigned int global_offset = literal_table_lookup(num.text, num.value);
+    //debug_print("Adding literal: %s = %d\n", num.text, num.value);
     code_seq_concat(&ret, code_seq_singleton(code_cpw(SP, 0, GP, global_offset)));
 
     return ret;
@@ -725,7 +731,7 @@ code_seq gen_code_number(number_t *num)
 }
 
 // generate code for expression exp
-code_seq gen_code_logical_not_expr(negated_expr_t *exp)
+code_seq gen_code_logical_not_expr(negated_expr_t exp)
 {
     /*
     code_seq ret = gen_code_expr(exp);
