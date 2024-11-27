@@ -568,7 +568,7 @@ code_seq gen_code_binary_op_expr(binary_op_expr_t exp)
 {
     code_seq ret = gen_code_expr(*(exp.expr1)); // first operand
     code_seq_concat(&ret, gen_code_expr(*(exp.expr2))); // second operand
-    code_seq_concat(&ret, gen_code_op(&(exp.arith_op))); // operation
+    code_seq_concat(&ret, gen_code_op((exp.arith_op))); // operation
 
     bail_with_error("TODO: no implementation of gen_code_binary_op_expr yet!");
 
@@ -576,9 +576,9 @@ code_seq gen_code_binary_op_expr(binary_op_expr_t exp)
 }
 
 // generate code to apply op to 2nd from top and top of the stack
-code_seq gen_code_op(token_t *op) 
+code_seq gen_code_op(token_t op) 
 {
-    switch (op->code) 
+    switch (op.code) 
     {
         case eqsym: case neqsym:
         case ltsym: case leqsym:
@@ -590,7 +590,7 @@ code_seq gen_code_op(token_t *op)
 	        return gen_code_arith_op(op);
 	        break;
         default:
-	        bail_with_error("Unknown token code (%d) in gen_code_op", op->code);
+	        bail_with_error("Unknown token code (%d) in gen_code_op", op.code);
 	        break;
     }
     bail_with_error("TODO: no implementation of gen_code_op yet!");
@@ -598,10 +598,10 @@ code_seq gen_code_op(token_t *op)
 }
 
 // generate code for floating-point arith_op
-code_seq gen_code_arith_op(token_t *arith_op) 
+code_seq gen_code_arith_op(token_t arith_op) 
 {
     code_seq do_op = code_seq_empty();
-    switch (arith_op->code) 
+    switch (arith_op.code) 
     {
         case plussym:
 	        code_seq_add_to_end(&do_op, code_add(SP, 1, SP, 0));
@@ -618,7 +618,7 @@ code_seq gen_code_arith_op(token_t *arith_op)
             code_seq_add_to_end(&do_op, code_cflo(SP, 1));
 	        break;
         default:
-	        bail_with_error("Unexpected arithOp (%d) in gen_code_arith_op", arith_op->code);
+	        bail_with_error("Unexpected arithOp (%d) in gen_code_arith_op", arith_op.code);
 	        break;
     }
 
@@ -627,10 +627,10 @@ code_seq gen_code_arith_op(token_t *arith_op)
 }
 
 // generate code for rel_op
-code_seq gen_code_rel_op(token_t *rel_op)
+code_seq gen_code_rel_op(token_t rel_op)
 {
-    code_seq do_op = gen_code_expr(rel_op);
-    switch (rel_op->code) 
+    code_seq do_op = code_seq_empty();
+    switch (rel_op.code) 
     {
         case eqsym: 
 	        code_seq_add_to_end(&do_op, code_beq(SP, 0, 1));
@@ -661,16 +661,9 @@ code_seq gen_code_rel_op(token_t *rel_op)
 	        break;
 
         default:
-	        bail_with_error("Unknown token code (%d) in gen_code_rel_op", rel_op->code);
+	        bail_with_error("Unknown token code (%d) in gen_code_rel_op", rel_op.code);
 	        break;
     }
-    code_seq_concat(&ret, do_op);
-    code_seq_add_to_end(&ret, code_add(0, 0, AT));
-    code_seq_add_to_end(&ret, code_beq(0, 0, 1));
-    code_seq_add_to_end(&ret, code_addi(0, AT, 1));
-    code_seq_concat(&ret, code_push_reg_on_stack(AT, bool_te));
-    return ret;
-    */
     bail_with_error("TODO: no implementation of gen_code_rel_op yet!");
     return code_seq_empty();
 }
