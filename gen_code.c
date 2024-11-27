@@ -1,14 +1,18 @@
  /*$Id: gen_code.c, 2024/11/24 $ */
-#include <limits.h>
-#include <string.h>
-#include "spl.tab.h"
+#include "gen_code.h"
+#include "code_seq.h"
+#include "code_utils.h"
 #include "ast.h"
+#include "bof.h"
+#include "spl.tab.h"
 #include "code.h"
 #include "id_use.h"
 #include "literal_table.h"
-#include "gen_code.h"
 #include "utilities.h"
 #include "regname.h"
+#include <limits.h>
+#include <string.h>
+
 
 #define MAX_STACK 4096
 
@@ -266,11 +270,11 @@ code_seq gen_code_stmt(stmt_t *stmt) {
             result = gen_code_whileStmt(&stmt->data.while_stmt);
             break;
         */
-            /*
+            
         case if_stmt:
             result = gen_code_ifStmt(&stmt->data.if_stmt);
             break;
-            */
+            
         case read_stmt:
             result = gen_code_readStmt(&stmt->data.read_stmt);
             break;
@@ -330,21 +334,47 @@ code_seq gen_code_callStmt(call_stmt_t *stmt) {
 
     return ret;
 }
+code_seq gen_code_ifStmt(if_stmt_t *stmt) {
+    assert(stmt != NULL);
 
+    code_seq ret = code_seq_empty();
 
-code_seq gen_code_blockStmt(block_stmt_t *block_stmt) {
-  
-    if (block_stmt == NULL || block_stmt->block == NULL) {
-        return code_seq_empty(); 
+    condition_t *condition = &stmt->condition;
+    assert(condition != NULL);
+    assert(condition->cond_kind == ck_rel);
+
+    code_seq operand1 = gen_code_expr(&condition->data.rel_op_cond.expr1);
+    code_seq_concat(&ret, operand1);
+
+    code_seq operand2 = gen_code_expr(&condition->data.rel_op_cond.expr2);
+    code_seq_concat(&ret, operand2);
+
+    code_seq sub_code = code_seq_singleton(code_sub(GP, 0, FP, 0));
+    code_seq_concat(&ret, sub_code);
+
+    int else_label = code_seq_size(ret) + 1;
+    int end_label = else_label + 1;
+
+    code_seq_concat(&ret, code_seq_singleton(code_bltz(GP, 0, else_label)));
+    code_seq_concat(&ret, code_seq_singleton(code_beq(GP, 0, else_label)));
+
+    // Pass then_stmts directly
+    assert(stmt->then_stmts != NULL);
+    code_seq then_code = gen_code_stmts(stmt->then_stmts);
+    code_seq_concat(&ret, then_code);
+
+    code_seq_concat(&ret, code_seq_singleton(code_jrel(end_label)));
+
+    // Pass else_stmts directly
+    if (stmt->else_stmts != NULL) {
+        code_seq else_code = gen_code_stmts(stmt->else_stmts);
+        code_seq_concat(&ret, else_code);
     }
 
-    return gen_code_block(block_stmt->block);
+    return ret;
 }
 
-
-
-
-code_seq gen_code_if_stmt(if_stmt_t * stmt) {
+/*code_seq gen_code_if_stmt(if_stmt_t * stmt) {
     /*code_seq ret = gen_code_condition(&(stmt->condition));
     code_seq then_code = gen_code_stmts(&(stmt->then_stmts));
     int then_code_len = code_seq_size(then_code);
@@ -363,12 +393,12 @@ code_seq gen_code_if_stmt(if_stmt_t * stmt) {
         code_seq_add_to_end(&ret, code_jump(else_code_len));
     }
 
-    code_seq_concat(&ret, else_code);
+    code_seq_concat(&ret, else_code);//
 
-    return ret;*/
+    return ret;
     bail_with_error("Can't run gen_code_if() yet");
     return code_seq_empty();
-}
+}*/
 
 
 
@@ -421,12 +451,32 @@ code_seq gen_code_readStmt(read_stmt_t *stmt) {
 
 code_seq gen_code_printStmt(print_stmt_t *stmt)
 {
-    code_seq ret = gen_code_expr(&stmt->expr);
-    code_seq_concat(&ret, code_seq_singleton(code_pint(SP, 0)));
-    code_seq_concat(&ret, code_utils_deallocate_stack_space(1));
+    code_seq ret = code_seq_empty();
+
+    code_seq expr_cs = gen_code_expr(&stmt->expr); 
+    code_seq_concat(&ret, expr_cs);
+
+    code_seq alloc_cs = code_utils_allocate_stack_space(1);
+    code_seq_concat(&ret, alloc_cs);
+
+    code_seq pint_cs = code_seq_singleton(code_pint(SP, 0));
+    code_seq_concat(&ret, pint_cs);
+
+    code_seq dealloc_cs = code_utils_deallocate_stack_space(2);
+    code_seq_concat(&ret, dealloc_cs);
+
     return ret;
 }
 
+
+code_seq gen_code_blockStmt(block_stmt_t *block_stmt) {
+  
+    if (block_stmt == NULL || block_stmt->block == NULL) {
+        return code_seq_empty(); 
+    }
+
+    return gen_code_block(block_stmt->block);
+}
 
 code_seq gen_code_expr(expr_t* exp)
 {
