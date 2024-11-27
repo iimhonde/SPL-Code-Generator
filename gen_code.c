@@ -400,7 +400,7 @@ code_seq gen_code_callStmt(call_stmt_t stmt)
     return ret;
 }
 
-code_seq gen_code_if_stmt(if_stmt_t stmt) {
+code_seq gen_code_ifStmt(if_stmt_t stmt) {
     assert(stmt.condition.cond_kind == ck_rel);
 
     code_seq ret = code_utils_allocate_stack_space(1); // Allocate space for the condition result
@@ -424,7 +424,9 @@ code_seq gen_code_if_stmt(if_stmt_t stmt) {
     code_seq_add_to_end(&ret, code_cpw(SP, 0, GP, offset2));
 
    word_type diff = num2 - num1;
-   if ()
+   if ( diff < 1){
+
+   }
    
 }
 /*code_seq gen_code_if_stmt(if_stmt_t * stmt) {
