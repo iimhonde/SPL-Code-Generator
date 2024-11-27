@@ -7,7 +7,7 @@
 #include "bof.h"
 
 // Initialize the code generator
-code_seq gen_code_initialize();
+void gen_code_initialize();
 
 // Output the program to the BOF file
 void gen_code_program(BOFFILE bf, block_t *prog);
@@ -46,7 +46,7 @@ code_seq gen_code_op(token_t *op);
 code_seq gen_code_arith_op(token_t *arith_op);
 code_seq gen_code_rel_op(token_t *rel_op);
 code_seq gen_code_number(number_t *num);
-code_seq gen_code_logical_not_expr(expr_t *exp);
+code_seq gen_code_logical_not_expr(negated_expr_t *exp);
 
 // Helper functions (for BOF output)
 static void gen_code_output_seq(BOFFILE bf, code_seq cs);

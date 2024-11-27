@@ -13,7 +13,7 @@
 #define MAX_STACK 4096
 
 // initialize the code generator
-code_seq gen_code_initialize()
+void gen_code_initialize()
 {
     literal_table_initialize();
 }
@@ -79,6 +79,7 @@ void gen_code_program(BOFFILE bf, block_t *prog) {
 code_seq gen_code_block(block_t *block) {
 
     code_seq ret = code_seq_empty();
+    
     code_seq_add_to_end(&ret, code_cpr(3, FP));
 
     code_seq var_decls_cs = gen_code_var_decls(&block->var_decls);
@@ -104,7 +105,7 @@ code_seq gen_code_block(block_t *block) {
 
     int total_len = const_len + var_len;
 
-    code_utils_deallocate_stack_space(var_len);
+    code_utils_deallocate_stack_space(total_len);
 
     return ret;
 }
@@ -114,11 +115,9 @@ code_seq gen_code_const_decls(const_decls_t *const_decls) {
     const_decl_t *cdp = const_decls->start;
 
     if (cdp != NULL) {
-        code_seq rest_cs = gen_code_const_decls(cdp->next);
-        code_seq_concat(&ret, rest_cs);
-        
         code_seq decl_cs = gen_code_const_decl(cdp);
         code_seq_concat(&ret, decl_cs);
+        cdp = cdp->next;
     }
 
     return ret;
@@ -136,12 +135,10 @@ code_seq gen_code_const_def_list(const_def_list_t *cdl) {
 
     if (cdf != NULL) {
        
-        code_seq rest_cs = gen_code_const_def_list(cdf->next);
-        code_seq_concat(&ret, rest_cs);
-
-        
         code_seq def_cs = gen_code_const_def(cdf);
         code_seq_concat(&ret, def_cs);
+
+        cdf = cdf ->next;
     }
 
     return ret;
@@ -150,7 +147,7 @@ code_seq gen_code_const_def_list(const_def_list_t *cdl) {
 code_seq gen_code_const_def(const_def_t *def) {
     code_seq ret = code_seq_empty();
 
-    char * name = def->ident.name;
+    const char * name = def->ident.name;
 
     word_type num = def->number.value;
 
@@ -289,7 +286,7 @@ code_seq gen_code_stmt(stmt_t *stmt) {
 
 code_seq gen_code_assignStmt(assign_stmt_t * stmt)
 {
-    code_seq ret = gen_code_expr(&stmt->expr);
+    code_seq ret = gen_code_expr(stmt->expr);
 
 
     assert(stmt->idu != NULL);
@@ -341,14 +338,14 @@ code_seq gen_code_blockStmt(block_stmt_t *block_stmt) {
         return code_seq_empty(); 
     }
 
-    return gen_code_block(&block_stmt->block);
+    return gen_code_block(block_stmt->block);
 }
 
 
 
-/*
+
 code_seq gen_code_if_stmt(if_stmt_t * stmt) {
-    code_seq ret = gen_code_condition(&(stmt->condition));
+    /*code_seq ret = gen_code_condition(&(stmt->condition));
     code_seq then_code = gen_code_stmts(&(stmt->then_stmts));
     int then_code_len = code_seq_size(then_code);
 
@@ -368,14 +365,15 @@ code_seq gen_code_if_stmt(if_stmt_t * stmt) {
 
     code_seq_concat(&ret, else_code);
 
-    return ret;
+    return ret;*/
+    bail_with_error("Can't run gen_code_if() yet");
+    return code_seq_empty();
 }
-*/
 
 
-/*
+
 code_seq gen_code_whileStmt(while_stmt_t *stmt) {
-    code_seq ret = code_seq_empty();
+   /* code_seq ret = code_seq_empty();
     label *start_label = label_create();
     label *end_label = label_create();
 
@@ -394,9 +392,11 @@ code_seq gen_code_whileStmt(while_stmt_t *stmt) {
     label_set(end_label, code_seq_size(ret));
 
     return ret;
-}
-*/
+    */
+   bail_with_error("TODO: no implementation of gen_code_while() yet!");
+   return code_seq_empty();
 
+}
 
 code_seq gen_code_readStmt(read_stmt_t *stmt) {
    
@@ -622,7 +622,7 @@ code_seq gen_code_number(number_t *num)
     return code_seq_empty();
 }
 
-code_seq gen_code_logical_not_expr(expr_t *exp)
+code_seq gen_code_logical_not_expr(negated_expr_t *exp)
 {
     /*
     code_seq ret = gen_code_expr(exp);
