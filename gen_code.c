@@ -194,7 +194,7 @@ code_seq gen_code_const_def(const_def_t def)
     word_type num = def.number.value;    // Get value
 
     unsigned int literal_offset = literal_table_lookup(name, num);  // Get offset in literal table
-    debug_print("Literal table lookup for const: %s = %d, offset = %u\n", name, num, literal_offset);
+    //debug_print("Literal table lookup for const: %s = %d, offset = %u\n", name, num, literal_offset);
    
     code_seq load_cs = code_seq_singleton(code_cpw(SP,GP, 0, literal_offset));
     code_seq_concat( &load_cs, ret);
@@ -278,7 +278,7 @@ code_seq gen_code_ident(ident_t id) {
 code_seq gen_code_stmts(stmts_t stmts) 
 {
     //debug_print("looking up statements\n");
-    code_seq stmts_cs = code_seq_empty();
+    code_seq ret = code_seq_empty();
     //debug_print("Statement kind: %d\n", stmts.stmts_kind);
 
     if (stmts.stmts_kind != empty_stmts_e) 
@@ -291,14 +291,14 @@ code_seq gen_code_stmts(stmts_t stmts)
             // generate for single stmt
             code_seq stmt_cs = gen_code_stmt(stmt);
             // add to code sequence
-            code_seq_concat(&stmts_cs, stmt_cs); 
+            code_seq_concat(&ret, stmt_cs); 
             // move to next stmt
             stmt = stmt->next; 
         }
     }
     //debug_print("parsed through statements");
 
-    return stmts_cs;
+    return ret;
 }
 
 // generate code for stmt
