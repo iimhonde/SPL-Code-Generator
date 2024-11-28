@@ -188,16 +188,16 @@ code_seq gen_code_const_def_list(const_def_list_t cdl)
 
 code_seq gen_code_const_def(const_def_t def) 
 {
-    code_seq ret = code_seq_empty();
+    code_seq ret = code_utils_allocate_stack_space(1);
 
-    const char * name = def.ident.name;  // Get name
+    const char * name = def.number.text;  // Get name
     word_type num = def.number.value;    // Get value
 
     unsigned int literal_offset = literal_table_lookup(name, num);  // Get offset in literal table
     debug_print("Literal table lookup for const: %s = %d, offset = %u\n", name, num, literal_offset);
    
-    code_seq load_cs = code_seq_singleton(code_lit(GP, 0, literal_offset));
-    code_seq_concat(&ret, load_cs);
+    code_seq load_cs = code_seq_singleton(code_cpw(SP,GP, 0, literal_offset));
+    code_seq_concat( &load_cs, ret);
 
     return ret;
 }
@@ -240,7 +240,7 @@ code_seq gen_code_idents(ident_list_t ids)
         code_seq_concat(&alloc, ret);
 
         // store ident value
-        code_seq store = code_seq_singleton(code_swr(SP, 0, 0));  
+        code_seq store = code_seq_singleton(code_lit(SP, 0, 0));  
         code_seq_concat(&store, ret);
 
         // move to next ident
@@ -251,8 +251,7 @@ code_seq gen_code_idents(ident_list_t ids)
 
 //FIX
 // generate code to put value of given identifier
-code_seq gen_code_ident(ident_t id) 
-{
+code_seq gen_code_ident(ident_t id) {
     assert(id.idu != NULL); 
     id_attrs *attrs = id_use_get_attrs(id.idu);
     id_use *idu = id.idu;
@@ -263,11 +262,13 @@ code_seq gen_code_ident(ident_t id)
     assert(offset <= USHRT_MAX); 
 
     code_seq ret = code_seq_empty();
- 
-    code_seq compute_fp = code_utils_compute_fp(GP, levelsOutward);
+    code_seq compute_fp = code_utils_compute_fp(3, levelsOutward);
     code_seq_concat(&ret, compute_fp);
 
-    code_seq push_value = code_seq_singleton(code_cpw(SP, 0, GP, offset));
+    code_seq alloc_stack = code_utils_allocate_stack_space(1); // Allocate stack space
+    code_seq_concat(&ret, alloc_stack);
+    
+    code_seq push_value = code_seq_singleton(code_cpw(SP, 0, 3, offset));  // Copy value onto stack
     code_seq_concat(&ret, push_value);
 
     return ret;
@@ -340,9 +341,7 @@ code_seq gen_code_stmt(stmt_t *stmt)
 }
 
 // *** generate code for stmts ***
-
-code_seq gen_code_assignStmt(assign_stmt_t  stmt)
-{
+code_seq gen_code_assignStmt(assign_stmt_t  stmt) {
     code_seq ret = gen_code_expr(*(stmt.expr));
 
     id_use *scopeHunter = stmt.idu;
@@ -353,17 +352,18 @@ code_seq gen_code_assignStmt(assign_stmt_t  stmt)
     code_seq fp_cs = code_utils_compute_fp(3, levelsOut);
     code_seq_concat(&ret, fp_cs);
     
-
-    // get offset
     unsigned int offset_count = id_use_get_attrs(stmt.idu)->offset_count;
 
-    // store value
-    code_seq store_cs = code_seq_singleton(code_cpw(3, offset_count, SP, 0));  // Store the value
+    // Store value
+    code_seq store_cs = code_seq_singleton(code_cpw(3, offset_count, SP, 0));
     code_seq_concat(&ret, store_cs);
+
+    // Deallocate stack space used by expression
+    code_seq dealloc_cs = code_utils_deallocate_stack_space(1);
+    code_seq_concat(&ret, dealloc_cs);
 
     return ret;
 }
-
 
 code_seq gen_code_callStmt(call_stmt_t stmt) 
 {
@@ -496,20 +496,13 @@ code_seq gen_code_readStmt(read_stmt_t stmt)
     return ret;
 }
 
-code_seq gen_code_printStmt(print_stmt_t stmt)
-{
-    number_t number = stmt.expr.data.number;
-    unsigned int ofst = literal_table_lookup(number.text, number.value);
-
-    code_seq ret =code_utils_allocate_stack_space(1);
-    
-    code_seq load_cs = code_seq_singleton(code_cpw(SP, 0, GP, ofst));
-    code_seq_concat(&ret, load_cs);
+code_seq gen_code_printStmt(print_stmt_t stmt) {
+    code_seq ret = gen_code_expr(stmt.expr);
 
     code_seq pint_cs = code_seq_singleton(code_pint(SP, 0));
     code_seq_concat(&ret, pint_cs);
 
-    code_seq dealloc_cs = code_utils_deallocate_stack_space(2);
+    code_seq dealloc_cs = code_utils_deallocate_stack_space(1);
     code_seq_concat(&ret, dealloc_cs);
 
     return ret;
@@ -583,32 +576,30 @@ code_seq gen_code_op(token_t op)
     return code_seq_empty();
 }
 
-// generate code for floating-point arith_op
-code_seq gen_code_arith_op(token_t arith_op) 
-{
+code_seq gen_code_arith_op(token_t arith_op) {
     code_seq do_op = code_seq_empty();
-    switch (arith_op.code) 
-    {
+    switch (arith_op.code) {
         case plussym:
-	        code_seq_add_to_end(&do_op, code_add(SP, 1, SP, 0));
-	        break;
+            code_seq_add_to_end(&do_op, code_add(SP, 1, SP, 0));
+            break;
         case minussym:
-	        code_seq_add_to_end(&do_op, code_sub(SP, 1, SP, 0));
-	        break;
+            code_seq_add_to_end(&do_op, code_sub(SP, 1, SP, 0));
+            break;
         case multsym:
-	        code_seq_add_to_end(&do_op, code_mul(SP, 1));
+            code_seq_add_to_end(&do_op, code_mul(SP, 1));
             code_seq_add_to_end(&do_op, code_cflo(SP, 1));
-	        break;
+            break;
         case divsym:
-	        code_seq_add_to_end(&do_op, code_div(SP, 1));
+            code_seq_add_to_end(&do_op, code_div(SP, 1));
             code_seq_add_to_end(&do_op, code_cflo(SP, 1));
-	        break;
+            break;
         default:
-	        bail_with_error("Unexpected arithOp (%d) in gen_code_arith_op", arith_op.code);
-	        break;
+            bail_with_error("Unexpected arithOp (%d) in gen_code_arith_op", arith_op.code);
+            break;
     }
-
-    //bail_with_error("TODO: no implementation of gen_code_arith_op yet!");
+    // Deallocate one word from stack after operation
+    code_seq dealloc_cs = code_utils_deallocate_stack_space(1);
+    code_seq_concat(&do_op, dealloc_cs);
     return do_op;
 }
 
@@ -655,16 +646,14 @@ code_seq gen_code_rel_op(token_t rel_op)
 }
 
 // generate code to put given number on top of stack
-code_seq gen_code_number(number_t num)
-{
-    code_seq ret = code_seq_empty();
+code_seq gen_code_number(number_t num) {
+    code_seq ret = code_utils_allocate_stack_space(1);
     unsigned int global_offset = literal_table_lookup(num.text, num.value);
-    debug_print("Adding literal for number: %s = %d, Lookup offset: %u\n", num.text, num.value, global_offset);
-    code_seq_concat(&ret, code_seq_singleton(code_cpw(SP, 0, GP, global_offset)));
-
+    code_seq load_cs = code_seq_singleton(code_cpw(SP, 0, GP, global_offset));
+    code_seq_concat(&ret, load_cs);
     return ret;
-    //bail_with_error("TODO: no implementation of gen_code_number yet!");
 }
+
 
 // generate code for expression exp
 code_seq gen_code_logical_not_expr(negated_expr_t exp)
