@@ -444,21 +444,20 @@ code_seq gen_code_ifStmt(if_stmt_t stmt) {
     return ret;
 }
 
-
 code_seq gen_code_whileStmt(while_stmt_t stmt) {
     code_seq ret = code_seq_empty();
 
     // Step 1: Mark the start of the loop
-    int start_offset = code_seq_size(ret);
+    int loop_start_offset = code_seq_size(ret);
 
     // Step 2: Generate code for the condition
     assert(stmt.condition.cond_kind == ck_rel); // Assuming a relational condition
     code_seq condition_code = gen_code_rel_op(stmt.condition.data.rel_op_cond.rel_op);
     code_seq_concat(&ret, condition_code);
 
-    // Step 3: Generate branch instruction to skip the loop body if the condition is false
-    int condition_offset = code_seq_size(ret);
-    code_seq_add_to_end(&ret, code_beq(SP, 0, 0)); // Placeholder, will patch the offset later
+    // Step 3: Add a placeholder branch instruction
+    code *branch_instr = code_beq(SP, 0, 0); // Placeholder branch instruction
+    code_seq_add_to_end(&ret, branch_instr);
 
     // Step 4: Generate code for the loop body
     assert(stmt.body != NULL);
@@ -466,12 +465,12 @@ code_seq gen_code_whileStmt(while_stmt_t stmt) {
     code_seq_concat(&ret, body_code);
 
     // Step 5: Add jump back to the start of the loop
-    int back_jump_offset = start_offset - code_seq_size(ret) - 1; // Relative offset to loop start
+    int back_jump_offset = loop_start_offset - code_seq_size(ret) - 1; // Relative offset to loop start
     code_seq_add_to_end(&ret, code_jrel(back_jump_offset));
 
-    // Step 6: Patch the branch instruction to jump over the loop body
-    int exit_offset = code_seq_size(ret) - condition_offset - 1;
-    code_seq_patch_branch(&ret, condition_offset, exit_offset);
+    // Step 6: Patch the branch instruction
+    int loop_exit_offset = code_seq_size(ret) - loop_start_offset; // Offset to exit the loop
+    branch_instr->instr.immed.immed = loop_exit_offset; // Update immediate field directly
 
     // Step 7: Deallocate stack space for the condition result
     code_seq dealloc_code = code_utils_deallocate_stack_space(1);
