@@ -501,7 +501,7 @@ code_seq gen_code_printStmt(print_stmt_t stmt)
     number_t number = stmt.expr.data.number;
     unsigned int ofst = literal_table_lookup(number.text, number.value);
 
-    code_seq ret = code_utils_allocate_stack_space(1);
+    code_seq ret =code_utils_allocate_stack_space(1);
     
     code_seq load_cs = code_seq_singleton(code_cpw(SP, 0, GP, ofst));
     code_seq_concat(&ret, load_cs);
@@ -656,7 +656,6 @@ code_seq gen_code_rel_op(token_t rel_op)
 code_seq gen_code_number(number_t num) {
     code_seq ret = code_utils_allocate_stack_space(1);
     unsigned int global_offset = literal_table_lookup(num.text, num.value);
-
     //debug_print("Adding literal: %s = %d, Lookup offset: %u\n", num.text, num.value, global_offset);
     code_seq_concat(&ret, code_seq_singleton(code_cpw(SP, 0, GP, global_offset)));
 
