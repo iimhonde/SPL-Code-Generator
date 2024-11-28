@@ -110,11 +110,8 @@ void gen_code_program(BOFFILE bf, block_t prog)
 code_seq gen_code_block(block_t block) 
 {
     //debug_print("Entering block\n");
-    code_seq ret = code_seq_empty();
+    code_seq ret =  gen_code_var_decls(block.var_decls);
 
-    // generate code for variable declarations
-    code_seq var_decls_cs = gen_code_var_decls(block.var_decls);
-    code_seq_concat(&ret, var_decls_cs);
     
     // generate code for constant declaration
     code_seq const_decls_cs = gen_code_const_decls(block.const_decls);
@@ -151,12 +148,12 @@ code_seq gen_code_const_decls(const_decls_t const_decls)
     code_seq ret = code_seq_empty();
     const_decl_t *cdp = const_decls.start;
 
-    if (cdp != NULL) 
+    while (cdp != NULL) 
     {
         // generate code for first const decl
         code_seq decl_cs = gen_code_const_decl(*cdp);
         // add to code sequence
-        code_seq_concat(&ret, decl_cs);
+        code_seq_concat( &decl_cs, ret);
         // move to next const decl
         cdp = cdp->next;
     }
@@ -176,12 +173,12 @@ code_seq gen_code_const_def_list(const_def_list_t cdl)
     code_seq ret = code_seq_empty();
     const_def_t *cdf = cdl.start;
 
-    if (cdf != NULL) 
+    while (cdf != NULL) 
     {
         // generate code for first
         code_seq def_cs = gen_code_const_def(*cdf);
         // add to code sequence
-        code_seq_concat(&ret, def_cs);
+        code_seq_concat(&def_cs, ret);
         // move to next const decl
         cdf = cdf ->next;
     }
@@ -189,30 +186,21 @@ code_seq gen_code_const_def_list(const_def_list_t cdl)
     return ret;
 }
 
-// generate code for single constant definition
 code_seq gen_code_const_def(const_def_t def) 
 {
     code_seq ret = code_seq_empty();
 
-    const char * name = def.ident.name; // get name
-    word_type num = def.number.value; // get value
+    const char * name = def.ident.name;  // Get name
+    word_type num = def.number.value;    // Get value
 
-    unsigned int literal_offset = literal_table_lookup(name, num); // get offset
-    //debug_print("Adding literal: %s = %d\n", name, num);
-    // allocate space
-    code_seq alloc_cs = code_utils_allocate_stack_space(1);
-    code_seq_concat(&ret, alloc_cs);
-    
-    // load const value from literal table
+    unsigned int literal_offset = literal_table_lookup(name, num);  // Get offset in literal table
+    debug_print("Literal table lookup for const: %s = %d, offset = %u\n", name, num, literal_offset);
+   
     code_seq load_cs = code_seq_singleton(code_lit(GP, 0, literal_offset));
     code_seq_concat(&ret, load_cs);
 
-    // store const value
-    code_seq store_cs = code_seq_singleton(code_swr(FP, 0, GP));
-    code_seq_concat(&ret, store_cs);
-
     return ret;
-}    
+}
 
 // generate code for var_decls_t vds to out
 code_seq gen_code_var_decls(var_decls_t vds)
@@ -249,11 +237,11 @@ code_seq gen_code_idents(ident_list_t ids)
     {
 	    // allocate space
 	    code_seq alloc = code_utils_allocate_stack_space(1);
-        code_seq_concat(&ret, alloc);
+        code_seq_concat(&alloc, ret);
 
         // store ident value
         code_seq store = code_seq_singleton(code_swr(SP, 0, 0));  
-        code_seq_concat(&ret, store);
+        code_seq_concat(&store, ret);
 
         // move to next ident
         idp = idp->next;
@@ -357,19 +345,25 @@ code_seq gen_code_assignStmt(assign_stmt_t  stmt)
 {
     code_seq ret = gen_code_expr(*(stmt.expr));
 
-    assert(stmt.idu != NULL);
-    assert(id_use_get_attrs(stmt.idu) != NULL);
+    id_use *scopeHunter = stmt.idu;
+    assert(scopeHunter!= NULL);
+    assert(id_use_get_attrs(scopeHunter) != NULL);
+
+    unsigned int levelsOut = scopeHunter->levelsOutward;
+    code_seq fp_cs = code_utils_compute_fp(3, levelsOut);
+    code_seq_concat(&ret, fp_cs);
+    
 
     // get offset
     unsigned int offset_count = id_use_get_attrs(stmt.idu)->offset_count;
-    assert(offset_count <= USHRT_MAX);
 
     // store value
-    code_seq store_cs = code_seq_singleton(code_swr(FP, offset_count, GP));
+    code_seq store_cs = code_seq_singleton(code_cpw(3, offset_count, SP, 0));  // Store the value
     code_seq_concat(&ret, store_cs);
 
     return ret;
 }
+
 
 code_seq gen_code_callStmt(call_stmt_t stmt) 
 {
@@ -665,7 +659,7 @@ code_seq gen_code_number(number_t num)
 {
     code_seq ret = code_seq_empty();
     unsigned int global_offset = literal_table_lookup(num.text, num.value);
-    //debug_print("Adding literal: %s = %d, Lookup offset: %u\n", num.text, num.value, global_offset);
+    debug_print("Adding literal for number: %s = %d, Lookup offset: %u\n", num.text, num.value, global_offset);
     code_seq_concat(&ret, code_seq_singleton(code_cpw(SP, 0, GP, global_offset)));
 
     return ret;
