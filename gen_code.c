@@ -137,7 +137,7 @@ code_seq gen_code_block(block_t block)
     int const_len = ((code_seq_size(ret) - var_len) / 3);
     int total_len = const_len + var_len;
 
-    code_utils_deallocate_stack_space(total_len);
+    //code_utils_deallocate_stack_space(total_len);
 
     return ret;
 }
@@ -153,7 +153,7 @@ code_seq gen_code_const_decls(const_decls_t const_decls)
         // generate code for first const decl
         code_seq decl_cs = gen_code_const_decl(*cdp);
         // add to code sequence
-        code_seq_concat( &decl_cs, ret);
+        code_seq_concat(&decl_cs, ret);
         // move to next const decl
         cdp = cdp->next;
         ret= decl_cs;
@@ -492,24 +492,6 @@ code_seq gen_code_readStmt(read_stmt_t stmt)
 
 code_seq gen_code_printStmt(print_stmt_t stmt) {
 
-    /*switch (stmt.expr.expr_kind) {
-        case expr_bin:
-            debug_print("Expression Type: Binary Operation\n");
-            break;
-        case expr_ident:
-            debug_print("Expression Type: Identifier\n");
-            break;
-        case expr_number:
-            debug_print("Expression Type: Number\n");
-            break;
-        case expr_negated:
-            debug_print("Expression Type: Negated Expression\n");
-            break;
-        default:
-            debug_print("Expression Type: Unknown (%d)\n", stmt.expr.expr_kind);
-            break;
-    }*/
-
     code_seq ret = gen_code_expr(stmt.expr);
 
     code_seq pint_cs = code_seq_singleton(code_pint(SP, 0));
@@ -660,11 +642,8 @@ code_seq gen_code_rel_op(token_t rel_op)
 
 // generate code to put given number on top of stack
 code_seq gen_code_number(number_t num) {
-    
-    unsigned int global_offset = literal_table_lookup(num.text, num.value);
-
     code_seq ret = code_utils_allocate_stack_space(1);
-    
+    unsigned int global_offset = literal_table_lookup(num.text, num.value);
     printf("gen_code_number: num.text=%s, num.value=%d, global_offset=%u\n", num.text, num.value, global_offset);
 
     code_seq load_cs = code_seq_singleton(code_cpw(SP, 0, GP, global_offset));
