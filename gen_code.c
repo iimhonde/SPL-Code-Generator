@@ -458,24 +458,24 @@ code_seq gen_code_ifStmt(if_stmt_t stmt) {
 
 
 
-code_seq gen_code_whileStmt(while_stmt_t stmt) {
-   /* code_seq ret = code_seq_empty();
-    label *start_label = label_create();
-    label *end_label = label_create();
+code_seq gen_code_whileStmt(while_stmt_t stmt) 
+{
+   /* 
+    code_seq ret = code_seq_empty();
+    int start_label = code_seq_size(ret);
+    int end_label;
 
-    label_set(start_label, code_seq_size(ret));
-
-    code_seq condition_code = gen_code_condition(&(stmt->condition));
+    code_seq condition_code = gen_code_expr(stmt.condition.data.rel_op_cond.expr1);
     code_seq_concat(&ret, condition_code);
 
-    code_seq_add_to_end(&ret, code_beq(SP, 0, label_read(end_label)));
+    code_seq_add_to_end(&ret, code_beq(SP, 0, end_label));
 
-    code_seq body_code = gen_code_stmts(&stmt->body);
+    code_seq body_code = gen_code_stmts(*(stmt.body));
     code_seq_concat(&ret, body_code);
 
-    code_seq_add_to_end(&ret, code_jmpa(label_read(start_label)));
+    code_seq_add_to_end(&ret, code_jmpa(start_label));
 
-    label_set(end_label, code_seq_size(ret));
+    end_label = code_seq_size(ret);
 
     return ret;
     */
