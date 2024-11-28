@@ -403,7 +403,7 @@ code_seq gen_code_callStmt(call_stmt_t stmt)
 code_seq gen_code_ifStmt(if_stmt_t stmt) {
     assert(stmt.condition.cond_kind == ck_rel);
 
-    code_seq ret = code_utils_allocate_stack_space(1); // Allocate space for the condition result
+    code_seq ret = code_utils_allocate_stack_space(1); // Allocate space for condition result
 
     // Generate code for the first operand (expr1)
     number_t val1 = stmt.condition.data.rel_op_cond.expr1.data.number;
@@ -423,37 +423,38 @@ code_seq gen_code_ifStmt(if_stmt_t stmt) {
     code_seq_add_to_end(&ret, code_lit(SP, 0, offset2));
     code_seq_add_to_end(&ret, code_cpw(SP, 0, GP, offset2));
 
-   word_type diff = num2 - num1;
-   if ( diff < 1){
+    // Generate code for the relational operation
+    word_type diff = num2 - num1;
 
-   }
-   
-}
-/*code_seq gen_code_if_stmt(if_stmt_t * stmt) {
-    /*code_seq ret = gen_code_condition(&(stmt->condition));
-    code_seq then_code = gen_code_stmts(&(stmt->then_stmts));
-    int then_code_len = code_seq_size(then_code);
-
-    code_seq else_code = code_seq_empty();
-    int else_code_len = 0;
-    if (stmt->else_stmts != NULL && stmt->else_stmts.stmts_kind != empty_stmts_e) {
-        else_code = gen_code_stmts(stmt->else_stmts);
-        else_code_len = code_seq_size(else_code);
+    // Branching logic based on the comparison
+    if (diff < 0) {
+        code_seq_add_to_end(&ret, code_jrel(-1)); // Example for jump if less
+    } else if (diff > 0) {
+        code_seq_add_to_end(&ret, code_jrel(1)); // Example for jump if greater
+    } else {
+        code_seq_add_to_end(&ret, code_beq(SP, 0, 2)); // Example for branch if equal
     }
 
-    code_seq_add_to_end(&ret, code_beq(SP, 0, then_code_len));
+    // Code sequence for the "then" statements
+    assert(stmt.then_stmts != NULL);
+    code_seq then_code = gen_code_stmts(*(stmt.then_stmts));
+    int then_code_size = code_seq_size(then_code);
     code_seq_concat(&ret, then_code);
 
-    if (else_code_len > 0) {
-        code_seq_add_to_end(&ret, code_jump(else_code_len));
+    // Generate code for the "else" statements (if present)
+    if (stmt.else_stmts != NULL) {
+        // Add jump to skip "else" part after executing "then" statements
+        code_seq_add_to_end(&ret, code_jrel(then_code_size + 1));
+
+        code_seq else_code = gen_code_stmts(*(stmt.else_stmts));
+        code_seq_concat(&ret, else_code);
     }
 
-    code_seq_concat(&ret, else_code);//
+    // Deallocate the stack space used by the condition
+    code_seq_concat(&ret, code_utils_deallocate_stack_space(1));
 
     return ret;
-    bail_with_error("Can't run gen_code_if() yet");
-    return code_seq_empty();
-}*/
+}
 
 
 
