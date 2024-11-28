@@ -445,31 +445,39 @@ code_seq gen_code_ifStmt(if_stmt_t stmt) {
 }
 
 
-
 code_seq gen_code_whileStmt(while_stmt_t stmt) {
-   /* code_seq ret = code_seq_empty();
-    label *start_label = label_create();
-    label *end_label = label_create();
+    code_seq ret = code_seq_empty();
 
-    label_set(start_label, code_seq_size(ret));
+    // Step 1: Mark the start of the loop
+    int start_offset = code_seq_size(ret);
 
-    code_seq condition_code = gen_code_condition(&(stmt->condition));
+    // Step 2: Generate code for the condition
+    assert(stmt.condition.cond_kind == ck_rel); // Assuming a relational condition
+    code_seq condition_code = gen_code_rel_op(stmt.condition.data.rel_op_cond.rel_op);
     code_seq_concat(&ret, condition_code);
 
-    code_seq_add_to_end(&ret, code_beq(SP, 0, label_read(end_label)));
+    // Step 3: Generate branch instruction to skip the loop body if the condition is false
+    int condition_offset = code_seq_size(ret);
+    code_seq_add_to_end(&ret, code_beq(SP, 0, 0)); // Placeholder, will patch the offset later
 
-    code_seq body_code = gen_code_stmts(&stmt->body);
+    // Step 4: Generate code for the loop body
+    assert(stmt.body != NULL);
+    code_seq body_code = gen_code_stmts(*(stmt.body));
     code_seq_concat(&ret, body_code);
 
-    code_seq_add_to_end(&ret, code_jmpa(label_read(start_label)));
+    // Step 5: Add jump back to the start of the loop
+    int back_jump_offset = start_offset - code_seq_size(ret) - 1; // Relative offset to loop start
+    code_seq_add_to_end(&ret, code_jrel(back_jump_offset));
 
-    label_set(end_label, code_seq_size(ret));
+    // Step 6: Patch the branch instruction to jump over the loop body
+    int exit_offset = code_seq_size(ret) - condition_offset - 1;
+    code_seq_patch_branch(&ret, condition_offset, exit_offset);
+
+    // Step 7: Deallocate stack space for the condition result
+    code_seq dealloc_code = code_utils_deallocate_stack_space(1);
+    code_seq_concat(&ret, dealloc_code);
 
     return ret;
-    */
-   bail_with_error("TODO: no implementation of gen_code_while() yet!");
-   return code_seq_empty();
-
 }
 
 code_seq gen_code_readStmt(read_stmt_t stmt) 
