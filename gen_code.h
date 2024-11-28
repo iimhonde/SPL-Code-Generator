@@ -46,7 +46,7 @@ code_seq gen_code_ident(ident_t id);
 code_seq gen_code_stmts(stmts_t stmts);
 
 // Generate code for a single statement
-code_seq gen_code_stmt(stmt_t *stmt);
+code_seq gen_code_stmt(stmt_t stmt);
 
 // Generate code for an assignment statement
 code_seq gen_code_assignStmt(assign_stmt_t stmt);
