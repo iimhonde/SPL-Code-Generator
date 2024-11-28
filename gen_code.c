@@ -186,19 +186,21 @@ code_seq gen_code_const_def_list(const_def_list_t cdl)
     return ret;
 }
 
-code_seq gen_code_const_def(const_def_t def) 
-{
-    code_seq ret = code_utils_allocate_stack_space(1);
+code_seq gen_code_const_def(const_def_t def) {
+    code_seq ret = code_seq_empty();
 
-    const char * name = def.number.text;  // Get name
-    word_type num = def.number.value;    // Get value
+    const char *name = def.ident.name;
+    word_type num = def.number.value;
 
-    unsigned int literal_offset = literal_table_lookup(name, num);  // Get offset in literal table
+    unsigned int literal_offset = literal_table_lookup(name, num);
     debug_print("Literal table lookup for const: %s = %d, offset = %u\n", name, num, literal_offset);
-   
-    code_seq load_cs = code_seq_singleton(code_cpw(SP,GP, 0, literal_offset));
-    code_seq_concat( &load_cs, ret);
+     debug_print("SP before : %d\n", SP);
+    // Adjust SP directly for the constant's value
+    code_seq load_cs = code_seq_singleton(code_cpw(SP, GP, 0, literal_offset));
+    code_seq_concat(&ret, load_cs);
 
+   
+ 
     return ret;
 }
 
@@ -278,7 +280,7 @@ code_seq gen_code_ident(ident_t id) {
 code_seq gen_code_stmts(stmts_t stmts) 
 {
     //debug_print("looking up statements\n");
-    code_seq stmts_cs = code_seq_empty();
+    code_seq ret = code_seq_empty();
     //debug_print("Statement kind: %d\n", stmts.stmts_kind);
 
     if (stmts.stmts_kind != empty_stmts_e) 
@@ -291,14 +293,14 @@ code_seq gen_code_stmts(stmts_t stmts)
             // generate for single stmt
             code_seq stmt_cs = gen_code_stmt(stmt);
             // add to code sequence
-            code_seq_concat(&stmts_cs, stmt_cs); 
+            code_seq_concat(&ret, stmt_cs); 
             // move to next stmt
             stmt = stmt->next; 
         }
     }
     //debug_print("parsed through statements");
 
-    return stmts_cs;
+    return ret;
 }
 
 // generate code for stmt
@@ -497,6 +499,25 @@ code_seq gen_code_readStmt(read_stmt_t stmt)
 }
 
 code_seq gen_code_printStmt(print_stmt_t stmt) {
+
+    /*switch (stmt.expr.expr_kind) {
+        case expr_bin:
+            debug_print("Expression Type: Binary Operation\n");
+            break;
+        case expr_ident:
+            debug_print("Expression Type: Identifier\n");
+            break;
+        case expr_number:
+            debug_print("Expression Type: Number\n");
+            break;
+        case expr_negated:
+            debug_print("Expression Type: Negated Expression\n");
+            break;
+        default:
+            debug_print("Expression Type: Unknown (%d)\n", stmt.expr.expr_kind);
+            break;
+    }*/
+
     code_seq ret = gen_code_expr(stmt.expr);
 
     code_seq pint_cs = code_seq_singleton(code_pint(SP, 0));
@@ -649,25 +670,33 @@ code_seq gen_code_rel_op(token_t rel_op)
 code_seq gen_code_number(number_t num) {
     code_seq ret = code_utils_allocate_stack_space(1);
     unsigned int global_offset = literal_table_lookup(num.text, num.value);
+    printf("gen_code_number: num.text=%s, num.value=%d, global_offset=%u\n", num.text, num.value, global_offset);
+
     code_seq load_cs = code_seq_singleton(code_cpw(SP, 0, GP, global_offset));
+    debug_print("This is the sp value: %d", SP);
     code_seq_concat(&ret, load_cs);
     return ret;
 }
 
+code_seq gen_code_logical_not_expr(negated_expr_t negated) {
+    // Generate code for the operand
+    code_seq operand_code = gen_code_expr(*(negated.expr));
+    code_seq ret = code_utils_allocate_stack_space(1);
+    code_seq_concat(&ret, operand_code);
 
-// generate code for expression exp
-code_seq gen_code_logical_not_expr(negated_expr_t exp)
-{
-    /*
-    code_seq ret = gen_code_expr(exp);
-    code_seq_concat(&ret, code_pop_stack_into_reg(AT, bool_te));
-    code_seq_add_to_end(&ret, code_beq(0, AT, 2));
-    code_seq_add_to_end(&ret, code_add(0, 0, AT));
-    code_seq_add_to_end(&ret, code_beq(0, 0, 1));
-    code_seq_add_to_end(&ret, code_addi(0, AT, 1));
-    code_seq_concat(&ret, code_push_reg_on_stack(AT, bool_te));
+    // Compare with zero and set result
+    code_seq branch_cs = code_seq_singleton(code_beq(SP, 0, 1)); // Branch if SP == 0
+    code_seq_concat(&ret, branch_cs);
+
+    // Set result to 1 if true
+    code_seq true_cs = code_seq_singleton(code_lit(SP, 0, 1));   // Load literal 1
+    code_seq_concat(&ret, true_cs);
+
+    // Set result to 0 if false
+    code_seq false_cs = code_seq_singleton(code_lit(SP, 0, 0));  // Load literal 0
+    code_seq_concat(&ret, false_cs);
+
     return ret;
-    */
-    bail_with_error("TODO: no implementation of gen_code_logical_not_expr yet!");
-    return code_seq_empty();
 }
+
+
