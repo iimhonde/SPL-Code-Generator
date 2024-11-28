@@ -156,6 +156,7 @@ code_seq gen_code_const_decls(const_decls_t const_decls)
         code_seq_concat( &decl_cs, ret);
         // move to next const decl
         cdp = cdp->next;
+        ret= decl_cs;
     }
 
     return ret;
@@ -181,28 +182,18 @@ code_seq gen_code_const_def_list(const_def_list_t cdl)
         code_seq_concat(&def_cs, ret);
         // move to next const decl
         cdf = cdf ->next;
+        ret = def_cs;
     }
 
     return ret;
 }
 
 code_seq gen_code_const_def(const_def_t def) {
-    code_seq ret = code_seq_empty();
+    code_seq ret =  gen_code_number(def.number); // def.number holds the constant's value
 
-    const char *name = def.ident.name;
-    word_type num = def.number.value;
-
-    unsigned int literal_offset = literal_table_lookup(name, num);
-    debug_print("Literal table lookup for const: %s = %d, offset = %u\n", name, num, literal_offset);
-     debug_print("SP before : %d\n", SP);
-    // Adjust SP directly for the constant's value
-    code_seq load_cs = code_seq_singleton(code_cpw(SP, GP, 0, literal_offset));
-    code_seq_concat(&ret, load_cs);
-
-   
- 
     return ret;
 }
+
 
 // generate code for var_decls_t vds to out
 code_seq gen_code_var_decls(var_decls_t vds)
@@ -217,6 +208,7 @@ code_seq gen_code_var_decls(var_decls_t vds)
         // add to code sequence
 	    code_seq_concat(&varDecl, ret);
         // move to next var decl
+        ret = varDecl;
 	    vdp = vdp->next;
     }
     return ret;
@@ -668,8 +660,11 @@ code_seq gen_code_rel_op(token_t rel_op)
 
 // generate code to put given number on top of stack
 code_seq gen_code_number(number_t num) {
-    code_seq ret = code_utils_allocate_stack_space(1);
+    
     unsigned int global_offset = literal_table_lookup(num.text, num.value);
+
+    code_seq ret = code_utils_allocate_stack_space(1);
+    
     printf("gen_code_number: num.text=%s, num.value=%d, global_offset=%u\n", num.text, num.value, global_offset);
 
     code_seq load_cs = code_seq_singleton(code_cpw(SP, 0, GP, global_offset));
