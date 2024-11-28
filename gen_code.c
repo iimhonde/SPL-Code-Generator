@@ -289,7 +289,7 @@ code_seq gen_code_stmts(stmts_t stmts)
         {
             //debug_print("lets check this stmt");
             // generate for single stmt
-            code_seq stmt_cs = gen_code_stmt(*stmt);
+            code_seq stmt_cs = gen_code_stmt(stmt);
             // add to code sequence
             code_seq_concat(&stmts_cs, stmt_cs); 
             // move to next stmt
@@ -302,20 +302,20 @@ code_seq gen_code_stmts(stmts_t stmts)
 }
 
 // generate code for stmt
-code_seq gen_code_stmt(stmt_t stmt) 
+code_seq gen_code_stmt(stmt_t *stmt) 
 {
     code_seq result = code_seq_empty();
 
-    switch (stmt.stmt_kind) 
+    switch (stmt->stmt_kind) 
     {
         case assign_stmt:
-            result = gen_code_assignStmt(stmt.data.assign_stmt);
+            result = gen_code_assignStmt(stmt->data.assign_stmt);
             break;
         case call_stmt:
-            result = gen_code_callStmt(stmt.data.call_stmt);
+            result = gen_code_callStmt(stmt->data.call_stmt);
             break;
         case block_stmt:
-            result = gen_code_blockStmt(stmt.data.block_stmt);
+            result = gen_code_blockStmt(stmt->data.block_stmt);
             break;
         /*
         case while_stmt:
@@ -324,14 +324,14 @@ code_seq gen_code_stmt(stmt_t stmt)
         */
             
         case if_stmt:
-            result = gen_code_ifStmt(stmt.data.if_stmt);
+            result = gen_code_ifStmt(stmt->data.if_stmt);
             break;
             
         case read_stmt:
-            result = gen_code_readStmt(stmt.data.read_stmt);
+            result = gen_code_readStmt(stmt->data.read_stmt);
             break;
         case print_stmt:
-            result = gen_code_printStmt(stmt.data.print_stmt);
+            result = gen_code_printStmt(stmt->data.print_stmt);
             break;
         default:
             bail_with_error("Call to gen_code_stmt with an AST that is not a statement!");
@@ -452,24 +452,24 @@ code_seq gen_code_ifStmt(if_stmt_t stmt) {
 
 
 
-code_seq gen_code_whileStmt(while_stmt_t stmt) 
-{
-   /* 
-    code_seq ret = code_seq_empty();
-    int start_label = code_seq_size(ret);
-    int end_label;
+code_seq gen_code_whileStmt(while_stmt_t stmt) {
+   /* code_seq ret = code_seq_empty();
+    label *start_label = label_create();
+    label *end_label = label_create();
 
-    code_seq condition_code = gen_code_expr(stmt.condition.data.rel_op_cond.expr1);
+    label_set(start_label, code_seq_size(ret));
+
+    code_seq condition_code = gen_code_condition(&(stmt->condition));
     code_seq_concat(&ret, condition_code);
 
-    code_seq_add_to_end(&ret, code_beq(SP, 0, end_label));
+    code_seq_add_to_end(&ret, code_beq(SP, 0, label_read(end_label)));
 
-    code_seq body_code = gen_code_stmts(*(stmt.body));
+    code_seq body_code = gen_code_stmts(&stmt->body);
     code_seq_concat(&ret, body_code);
 
-    code_seq_add_to_end(&ret, code_jmpa(start_label));
+    code_seq_add_to_end(&ret, code_jmpa(label_read(start_label)));
 
-    end_label = code_seq_size(ret);
+    label_set(end_label, code_seq_size(ret));
 
     return ret;
     */
@@ -496,15 +496,8 @@ code_seq gen_code_readStmt(read_stmt_t stmt)
     return ret;
 }
 
-code_seq gen_code_printStmt(print_stmt_t stmt)
-{
-    number_t number = stmt.expr.data.number;
-    unsigned int ofst = literal_table_lookup(number.text, number.value);
-
-    code_seq ret =code_utils_allocate_stack_space(1);
-    
-    code_seq load_cs = code_seq_singleton(code_cpw(SP, 0, GP, ofst));
-    code_seq_concat(&ret, load_cs);
+code_seq gen_code_printStmt(print_stmt_t stmt) {
+    code_seq ret = gen_code_expr(stmt.expr);
 
     code_seq pint_cs = code_seq_singleton(code_pint(SP, 0));
     code_seq_concat(&ret, pint_cs);
@@ -656,9 +649,8 @@ code_seq gen_code_rel_op(token_t rel_op)
 code_seq gen_code_number(number_t num) {
     code_seq ret = code_utils_allocate_stack_space(1);
     unsigned int global_offset = literal_table_lookup(num.text, num.value);
-    //debug_print("Adding literal: %s = %d, Lookup offset: %u\n", num.text, num.value, global_offset);
-    code_seq_concat(&ret, code_seq_singleton(code_cpw(SP, 0, GP, global_offset)));
-
+    code_seq load_cs = code_seq_singleton(code_cpw(SP, 0, GP, global_offset));
+    code_seq_concat(&ret, load_cs);
     return ret;
 }
 
@@ -666,7 +658,16 @@ code_seq gen_code_number(number_t num) {
 // generate code for expression exp
 code_seq gen_code_logical_not_expr(negated_expr_t exp)
 {
-    code_seq ret = gen_code_expr(*(exp.expr));
-
-    code_seq_concat(&ret, code_seq_singleton(code_neg(SP, 0, SP, 0)));
+    /*
+    code_seq ret = gen_code_expr(exp);
+    code_seq_concat(&ret, code_pop_stack_into_reg(AT, bool_te));
+    code_seq_add_to_end(&ret, code_beq(0, AT, 2));
+    code_seq_add_to_end(&ret, code_add(0, 0, AT));
+    code_seq_add_to_end(&ret, code_beq(0, 0, 1));
+    code_seq_add_to_end(&ret, code_addi(0, AT, 1));
+    code_seq_concat(&ret, code_push_reg_on_stack(AT, bool_te));
+    return ret;
+    */
+    bail_with_error("TODO: no implementation of gen_code_logical_not_expr yet!");
+    return code_seq_empty();
 }
