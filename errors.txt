@@ -1,0 +1,316 @@
+/home/net/iv665974/SPL-Code-Generator$ make hw4-gtest7.myo
+rm -f hw4-gtest7.myo; umask 022; \
+cat char-inputs.txt | ./vm/vm hw4-gtest7.bof > hw4-gtest7.myo 2>&1
+make: *** [Makefile:124: hw4-gtest7.myo] Error 1
+/home/net/iv665974/SPL-Code-Generator$ make check-outputs
+running ./compiler on hw4-gtest0.spl
+running vm/vm on hw4-gtest0.bof
+passed!
+running ./compiler on hw4-gtest1.spl
+running vm/vm on hw4-gtest1.bof
+passed!
+running ./compiler on hw4-gtest2.spl
+running vm/vm on hw4-gtest2.bof
+Literal table lookup for const: 33 = 33, offset = 0
+passed!
+running ./compiler on hw4-gtest3.spl
+running vm/vm on hw4-gtest3.bof
+1c1
+< 33
+\ No newline at end of file
+---
+> 0
+\ No newline at end of file
+running ./compiler on hw4-gtest5.spl
+running vm/vm on hw4-gtest5.bof
+Literal table lookup for const: 3 = 3, offset = 0
+TODO: no implementation of gen_code_logical_not_expr yet!
+Literal table lookup for const: 77 = 77, offset = 0
+passed!
+running ./compiler on hw4-gtest6.spl
+running vm/vm on hw4-gtest6.bof
+1c1
+< 34
+\ No newline at end of file
+---
+> 04
+\ No newline at end of file
+running ./compiler on hw4-gtest7.spl
+running vm/vm on hw4-gtest7.bof
+1c1
+< 4-3
+\ No newline at end of file
+---
+> Cannot read header from hw4-gtest7.bof
+running ./compiler on hw4-gtest8.spl
+running vm/vm on hw4-gtest8.bof
+Aborted (core dumped)
+1c1
+< 777778
+\ No newline at end of file
+---
+> vm: machine.c:647: machine_okay: Assertion `GPR[SP] <= GPR[FP]' failed.
+running ./compiler on hw4-gtest9.spl
+Literal table lookup for const: 0 = 0, offset = 0
+Literal table lookup for const: 1 = 1, offset = 1
+running vm/vm on hw4-gtest9.bof
+passed!
+running ./compiler on hw4-gtestA.spl
+running vm/vm on hw4-gtestA.bof
+1c1
+< 1
+\ No newline at end of file
+---
+> 6144
+\ No newline at end of file
+running ./compiler on hw4-gtestB.spl
+Literal table lookup for const: 0 = 0, offset = 0
+Literal table lookup for const: 1 = 1, offset = 1
+Literal table lookup for const: 2 = 2, offset = 2
+Literal table lookup for const: 3 = 3, offset = 3
+Literal table lookup for const: 3 = 3, offset = 0
+Literal table lookup for const: 4 = 4, offset = 1
+Literal table lookup for const: 0 = 0, offset = 2
+Literal table lookup for const: 2 = 2, offset = 3
+Literal table lookup for const: 3 = 3, offset = 0
+Literal table lookup for const: 4 = 4, offset = 1
+Literal table lookup for const: 0 = 0, offset = 2
+Literal table lookup for const: 2 = 2, offset = 3
+Literal table lookup for const: 3 = 3, offset = 0
+Literal table lookup for const: 4 = 4, offset = 1
+Literal table lookup for const: 0 = 0, offset = 2
+Literal table lookup for const: 2 = 2, offset = 3
+Literal table lookup for const: 3 = 3, offset = 0
+Literal table lookup for const: 4 = 4, offset = 1
+Literal table lookup for const: 0 = 0, offset = 2
+Literal table lookup for const: 2 = 2, offset = 3
+Literal table lookup for const: 3 = 3, offset = 0
+Literal table lookup for const: 4 = 4, offset = 1
+Literal table lookup for const: 0 = 0, offset = 2
+Literal table lookup for const: 2 = 2, offset = 3
+Literal table lookup for const: 3 = 3, offset = 0
+Literal table lookup for const: 4 = 4, offset = 1
+Literal table lookup for const: 0 = 0, offset = 2
+Literal table lookup for const: 2 = 2, offset = 3
+Literal table lookup for const: 0 = 0, offset = 0
+Literal table lookup for const: 2 = 2, offset = 1
+compiler: gen_code.c:398: gen_code_ifStmt: Assertion `stmt.condition.cond_kind == ck_rel' failed.
+running vm/vm on hw4-gtestB.bof
+1c1
+< 012123
+\ No newline at end of file
+---
+> 06144614461441Error: Attempt to divide by zero!
+running ./compiler on hw4-gtestC.spl
+running vm/vm on hw4-gtestC.bof
+1c1
+< 3
+\ No newline at end of file
+---
+> 12288
+\ No newline at end of file
+running ./compiler on hw4-gtestD.spl
+running vm/vm on hw4-gtestD.bof
+1c1
+< 2
+\ No newline at end of file
+---
+> 0
+\ No newline at end of file
+running ./compiler on hw4-gtestE.spl
+running vm/vm on hw4-gtestE.bof
+1c1
+< 4
+\ No newline at end of file
+---
+> 0
+\ No newline at end of file
+running ./compiler on hw4-gtestF.spl
+running vm/vm on hw4-gtestF.bof
+1c1
+< 3
+\ No newline at end of file
+---
+> 0
+\ No newline at end of file
+running ./compiler on hw4-gtestG.spl
+running vm/vm on hw4-gtestG.bof
+1c1
+< 3
+\ No newline at end of file
+---
+> 0
+\ No newline at end of file
+running ./compiler on hw4-gtestH.spl
+running vm/vm on hw4-gtestH.bof
+passed!
+running ./compiler on hw4-gtestI.spl
+Aborted (core dumped)
+Literal table lookup for const: 10 = 10, offset = 0
+Literal table lookup for const: 50 = 50, offset = 1
+Call to gen_code_stmt with an AST that is not a statement!
+Literal table lookup for const: 2 = 2, offset = 0
+Literal table lookup for const: 3 = 3, offset = 1
+Call to gen_code_stmt with an AST that is not a statement!
+Literal table lookup for const: 7 = 7, offset = 0
+Call to gen_code_stmt with an AST that is not a statement!
+Literal table lookup for const: 31 = 31, offset = 0
+Literal table lookup for const: 3 = 3, offset = 1
+Call to gen_code_stmt with an AST that is not a statement!
+Call to gen_code_stmt with an AST that is not a statement!
+Literal table lookup for const: 1 = 1, offset = 0
+Literal table lookup for const: 3 = 3, offset = 1
+Literal table lookup for const: 4 = 4, offset = 2
+Literal table lookup for const: 6 = 6, offset = 3
+TODO: no implementation of gen_code_logical_not_expr yet!
+compiler: gen_code.c:398: gen_code_ifStmt: Assertion `stmt.condition.cond_kind == ck_rel' failed.
+running vm/vm on hw4-gtestI.bof
+1c1
+< 03004108101143
+\ No newline at end of file
+---
+> Cannot read header from hw4-gtestI.bof
+running ./compiler on hw4-gtestJ.spl
+running vm/vm on hw4-gtestJ.bof
+1c1
+< 0354555400
+\ No newline at end of file
+---
+> 050200Error: Attempt to divide by zero!
+running ./compiler on hw4-gtestK.spl
+running vm/vm on hw4-gtestK.bof
+1c1
+< 1
+\ No newline at end of file
+---
+> Cannot read header from hw4-gtestK.bof
+running ./compiler on hw4-gtestL.spl
+running vm/vm on hw4-gtestL.bof
+1c1
+< 36543211
+\ No newline at end of file
+---
+> Cannot read header from hw4-gtestL.bof
+running ./compiler on hw4-gtestM.spl
+running vm/vm on hw4-gtestM.bof
+1c1
+< 7711172613201058421
+\ No newline at end of file
+---
+> Cannot read header from hw4-gtestM.bof
+running ./compiler on hw4-gtestN.spl
+running vm/vm on hw4-gtestN.bof
+1c1
+< 1123
+\ No newline at end of file
+---
+> Cannot read header from hw4-gtestN.bof
+running ./compiler on hw4-gtestO.spl
+running vm/vm on hw4-gtestO.bof
+1c1
+< 111
+\ No newline at end of file
+---
+> Cannot read header from hw4-gtestO.bof
+running ./compiler on hw4-gtestP.spl
+running vm/vm on hw4-gtestP.bof
+1c1
+< 3210
+\ No newline at end of file
+---
+> Cannot read header from hw4-gtestP.bof
+running ./compiler on hw4-gtestQ.spl
+Aborted (core dumped)
+compiler: gen_code.c:398: gen_code_ifStmt: Assertion `stmt.condition.cond_kind == ck_rel' failed.
+Aborted (core dumped)
+compiler: gen_code.c:398: gen_code_ifStmt: Assertion `stmt.condition.cond_kind == ck_rel' failed.
+running vm/vm on hw4-gtestQ.bof
+1c1
+< 86
+\ No newline at end of file
+---
+> Cannot read header from hw4-gtestQ.bof
+running ./compiler on hw4-gtestR.spl
+running vm/vm on hw4-gtestR.bof
+1c1
+< 99
+\ No newline at end of file
+---
+> Cannot read header from hw4-gtestR.bof
+running ./compiler on hw4-gtestS.spl
+Aborted (core dumped)
+Literal table lookup for const: 17 = 17, offset = 0
+compiler: gen_code.c:398: gen_code_ifStmt: Assertion `stmt.condition.cond_kind == ck_rel' failed.
+running vm/vm on hw4-gtestS.bof
+1c1
+< 23
+\ No newline at end of file
+---
+> Cannot read header from hw4-gtestS.bof
+running ./compiler on hw4-gtestT.spl
+Aborted (core dumped)
+running vm/vm on hw4-gtestT.bof
+Call to gen_code_stmt with an AST that is not a statement!
+1c1
+< 42
+\ No newline at end of file
+---
+> Cannot read header from hw4-gtestT.bof
+running ./compiler on hw4-read-test0.spl
+running vm/vm on hw4-read-test0.bof
+1c1
+< 36
+\ No newline at end of file
+---
+> 0
+\ No newline at end of file
+running ./compiler on hw4-read-test1.spl
+running vm/vm on hw4-read-test1.bof
+1c1
+< 36731005832991049711445105110112117116115461161201164411832494650325048505247494947495132495758525658485432108101971181011101153269120112321081019711810111011532361034567891515253545556579798991001011021031041051061071081091101111121131141151161171181191221211221065666768697071727374757677787980818283848586878889901010810610759463364363796126606244634792911231259310010297102106107101151071021065611751505650481164548105911121071141111061031051181141091111081075911710115108107100102106591151001021071069710811510710610
+\ No newline at end of file
+---
+> Cannot read header from hw4-read-test1.bof
+running ./compiler on hw4-vmtest0.spl
+running vm/vm on hw4-vmtest0.bof
+Literal table lookup for const: 5 = 5, offset = 0
+Literal table lookup for const: 10 = 10, offset = 0
+Literal table lookup for const: 121 = 121, offset = 1
+Literal table lookup for const: 89 = 89, offset = 0
+Literal table lookup for const: 78 = 78, offset = 1
+Literal table lookup for const: 10 = 10, offset = 2
+passed!
+running ./compiler on hw4-vmtest1.spl
+running vm/vm on hw4-vmtest1.bof
+passed!
+running ./compiler on hw4-vmtest2.spl
+running vm/vm on hw4-vmtest2.bof
+passed!
+running ./compiler on hw4-vmtest3.spl
+running vm/vm on hw4-vmtest3.bof
+1c1
+< 5
+\ No newline at end of file
+---
+> 0
+\ No newline at end of file
+running ./compiler on hw4-vmtest4.spl
+running vm/vm on hw4-vmtest4.bof
+passed!
+running ./compiler on hw4-vmtest5.spl
+running vm/vm on hw4-vmtest5.bof
+1c1
+< 3355
+\ No newline at end of file
+---
+> 3344
+\ No newline at end of file
+running ./compiler on hw4-vmtest6.spl
+running vm/vm on hw4-vmtest6.bof
+1c1
+< 111210
+\ No newline at end of file
+---
+> Error: Attempt to divide by zero!
+running ./compiler on hw4-vmtest7.spl
+running vm/vm on hw4-vmtest7.bof
