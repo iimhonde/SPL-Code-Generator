@@ -137,7 +137,7 @@ code_seq gen_code_block(block_t block)
     int const_len = ((code_seq_size(ret) - var_len) / 3);
     int total_len = const_len + var_len;
 
-    //code_utils_deallocate_stack_space(total_len);
+    code_utils_deallocate_stack_space(total_len);
 
     return ret;
 }
@@ -207,9 +207,11 @@ code_seq gen_code_var_decls(var_decls_t vds)
         code_seq varDecl = gen_code_var_decl(*vdp);
         // add to code sequence
 	    code_seq_concat(&varDecl, ret);
+
+        vdp = vdp->next;
+
         // move to next var decl
         ret = varDecl;
-	    vdp = vdp->next;
     }
     return ret;
 }
@@ -236,9 +238,10 @@ code_seq gen_code_idents(ident_list_t ids)
         // store ident value
         code_seq store = code_seq_singleton(code_lit(SP, 0, 0));  
         code_seq_concat(&store, ret);
-
         // move to next ident
         idp = idp->next;
+
+        ret = store;
     }
     return ret;
 }
@@ -256,13 +259,13 @@ code_seq gen_code_ident(ident_t id) {
     assert(offset <= USHRT_MAX); 
 
     code_seq ret = code_seq_empty();
-    code_seq compute_fp = code_utils_compute_fp(3, levelsOutward);
+    code_seq compute_fp = code_utils_compute_fp(4, levelsOutward);
     code_seq_concat(&ret, compute_fp);
 
     code_seq alloc_stack = code_utils_allocate_stack_space(1); // Allocate stack space
     code_seq_concat(&ret, alloc_stack);
     
-    code_seq push_value = code_seq_singleton(code_cpw(SP, 0, 3, offset));  // Copy value onto stack
+    code_seq push_value = code_seq_singleton(code_cpw(SP, 0, 4, offset));  // Copy value onto stack
     code_seq_concat(&ret, push_value);
 
     return ret;
@@ -287,7 +290,8 @@ code_seq gen_code_stmts(stmts_t stmts)
             // add to code sequence
             code_seq_concat(&ret, stmt_cs); 
             // move to next stmt
-            stmt = stmt->next; 
+
+            stmt = stmt->next;
         }
     }
     //debug_print("parsed through statements");
@@ -311,11 +315,10 @@ code_seq gen_code_stmt(stmt_t *stmt)
         case block_stmt:
             result = gen_code_blockStmt(stmt->data.block_stmt);
             break;
-        /*
+
         case while_stmt:
-            result = gen_code_whileStmt(&stmt->data.while_stmt);
+            result = gen_code_whileStmt(stmt->data.while_stmt);
             break;
-        */
             
         case if_stmt:
             result = gen_code_ifStmt(stmt->data.if_stmt);
@@ -343,13 +346,13 @@ code_seq gen_code_assignStmt(assign_stmt_t  stmt) {
     assert(id_use_get_attrs(scopeHunter) != NULL);
 
     unsigned int levelsOut = scopeHunter->levelsOutward;
-    code_seq fp_cs = code_utils_compute_fp(3, levelsOut);
+    code_seq fp_cs = code_utils_compute_fp(5, levelsOut);
     code_seq_concat(&ret, fp_cs);
     
     unsigned int offset_count = id_use_get_attrs(stmt.idu)->offset_count;
 
     // Store value
-    code_seq store_cs = code_seq_singleton(code_cpw(3, offset_count, SP, 0));
+    code_seq store_cs = code_seq_singleton(code_cpw(5, offset_count, SP, 0));
     code_seq_concat(&ret, store_cs);
 
     // Deallocate stack space used by expression
@@ -388,40 +391,52 @@ code_seq gen_code_callStmt(call_stmt_t stmt)
     return ret;
 }
 
-code_seq gen_code_ifStmt(if_stmt_t stmt) {
-    assert(stmt.condition.cond_kind == ck_rel);
+code_seq gen_code_condition(condition_t cond) {
+    code_seq ret = code_utils_allocate_stack_space(1);
 
-    code_seq ret = code_utils_allocate_stack_space(1); // Allocate space for condition result
+    switch (cond.cond_kind) {
+        case ck_rel:
+            // For relational conditions, generate code for the full expression
+            ret = gen_code_expr(cond.data.rel_op_cond.expr1);
+            code_seq_concat(&ret, gen_code_expr(cond.data.rel_op_cond.expr2));
+            
+            // Add relational operation code
+            code_seq rel_op_code = gen_code_rel_op(cond.data.rel_op_cond.rel_op);
+            code_seq_concat(&ret, rel_op_code);
+            break;
+        
+        case ck_db:
+            // For double binary conditions, generate code for dividend and divisor expressions
+            ret = gen_code_expr(cond.data.db_cond.dividend);
+            code_seq divisor_code = gen_code_expr(cond.data.db_cond.divisor);
+            code_seq_concat(&ret, divisor_code);
 
-    // Generate code for the first operand (expr1)
-    number_t val1 = stmt.condition.data.rel_op_cond.expr1.data.number;
-    word_type num1 = val1.value;
-    const char *name1 = val1.text;
-    unsigned int offset1 = literal_table_lookup(name1, num1);
-
-    code_seq_add_to_end(&ret, code_lit(SP, 0, offset1));
-    code_seq_add_to_end(&ret, code_cpw(SP, 0, GP, offset1));
-
-    // Generate code for the second operand (expr2)
-    number_t val2 = stmt.condition.data.rel_op_cond.expr2.data.number;
-    word_type num2 = val2.value;
-    const char *name2 = val2.text;
-    unsigned int offset2 = literal_table_lookup(name2, num2);
-
-    code_seq_add_to_end(&ret, code_lit(SP, 0, offset2));
-    code_seq_add_to_end(&ret, code_cpw(SP, 0, GP, offset2));
-
-    // Generate code for the relational operation
-    word_type diff = num2 - num1;
-
-    // Branching logic based on the comparison
-    if (diff < 0) {
-        code_seq_add_to_end(&ret, code_jrel(-1)); // Example for jump if less
-    } else if (diff > 0) {
-        code_seq_add_to_end(&ret, code_jrel(1)); // Example for jump if greater
-    } else {
-        code_seq_add_to_end(&ret, code_beq(SP, 0, 2)); // Example for branch if equal
+            // Perform division
+            code_seq_add_to_end(&ret, code_div(SP, 1));
+            code_seq_add_to_end(&ret, code_cflo(SP, 1));
+            break;
+        
+        default:
+            bail_with_error("Unexpected condition kind (%d) in gen_code_condition", cond.cond_kind);
+            break;
     }
+
+    code_seq_concat(&ret, code_utils_deallocate_stack_space(1));
+    return ret;
+}
+
+
+code_seq gen_code_ifStmt(if_stmt_t stmt) {
+    // Allocate stack space for condition result
+    code_seq ret = code_utils_allocate_stack_space(1);
+
+    // Generate code for the condition
+    code_seq condition_code = gen_code_condition(stmt.condition);
+    code_seq_concat(&ret, condition_code);
+
+    // Branching logic 
+    // Use a branch if zero to skip the "then" block
+    code_seq_add_to_end(&ret, code_beq(SP, 0, 2)); 
 
     // Code sequence for the "then" statements
     assert(stmt.then_stmts != NULL);
@@ -444,6 +459,7 @@ code_seq gen_code_ifStmt(if_stmt_t stmt) {
     return ret;
 }
 
+
 code_seq gen_code_whileStmt(while_stmt_t stmt) {
     code_seq ret = code_seq_empty();
 
@@ -451,12 +467,12 @@ code_seq gen_code_whileStmt(while_stmt_t stmt) {
     int loop_start_offset = code_seq_size(ret);
 
     // Step 2: Generate code for the condition
-    assert(stmt.condition.cond_kind == ck_rel); // Assuming a relational condition
-    code_seq condition_code = gen_code_rel_op(stmt.condition.data.rel_op_cond.rel_op);
+    code_seq condition_code = gen_code_condition(stmt.condition);
     code_seq_concat(&ret, condition_code);
 
-    // Step 3: Add a placeholder branch instruction
-    code *branch_instr = code_beq(SP, 0, 0); // Placeholder branch instruction
+    // Step 3: Add a branch instruction to exit the loop if condition is false
+    // Use a forward jump with a placeholder offset
+    code *branch_instr = code_beq(SP, 0, 0); // Branch if zero (false)
     code_seq_add_to_end(&ret, branch_instr);
 
     // Step 4: Generate code for the loop body
@@ -465,16 +481,12 @@ code_seq gen_code_whileStmt(while_stmt_t stmt) {
     code_seq_concat(&ret, body_code);
 
     // Step 5: Add jump back to the start of the loop
-    int back_jump_offset = loop_start_offset - code_seq_size(ret) - 1; // Relative offset to loop start
+    int back_jump_offset = -(code_seq_size(ret) - loop_start_offset + 1);
     code_seq_add_to_end(&ret, code_jrel(back_jump_offset));
 
-    // Step 6: Patch the branch instruction
-    int loop_exit_offset = code_seq_size(ret) - loop_start_offset; // Offset to exit the loop
-    branch_instr->instr.immed.immed = loop_exit_offset; // Update immediate field directly
-
-    // Step 7: Deallocate stack space for the condition result
-    code_seq dealloc_code = code_utils_deallocate_stack_space(1);
-    code_seq_concat(&ret, dealloc_code);
+    // Step 6: Patch the branch instruction to skip the loop body
+    int loop_exit_offset = code_seq_size(ret) - (loop_start_offset + code_seq_size(condition_code) + 1);
+    branch_instr->instr.immed.immed = loop_exit_offset;
 
     return ret;
 }
@@ -486,12 +498,17 @@ code_seq gen_code_readStmt(read_stmt_t stmt)
     assert(stmt.idu != NULL);
     assert(id_use_get_attrs(stmt.idu) != NULL);
 
-    // get offset
+    // Compute levels outward and compute fp.
+    unsigned int levelsOutward = stmt.idu->levelsOutward;
+    code_seq fp_cs = code_utils_compute_fp(5, levelsOutward);
+    code_seq_concat(&ret, fp_cs);
+
+    // Compute offset
     unsigned int offset = id_use_get_attrs(stmt.idu)->offset_count;
     assert(offset <= USHRT_MAX);
 
-    // generate read instr
-    code *read_instr = code_rch(FP, offset); 
+    // Generate read instruction to the computed frame pointer
+    code *read_instr = code_rch(5, offset); 
     code_seq_add_to_end(&ret, read_instr);
 
     return ret;
@@ -547,11 +564,16 @@ code_seq gen_code_expr(expr_t exp)
 // generate code for expression exp
 code_seq gen_code_binary_op_expr(binary_op_expr_t exp) 
 {
-    code_seq ret = gen_code_expr(*(exp.expr1)); // first operand
-    code_seq_concat(&ret, gen_code_expr(*(exp.expr2))); // second operand
-    code_seq_concat(&ret, gen_code_op((exp.arith_op))); // operation
-
-    //bail_with_error("TODO: no implementation of gen_code_binary_op_expr yet!");
+    // First operand
+    code_seq ret = gen_code_expr(*(exp.expr1));
+    
+    // Second operand
+    code_seq expr2_code = gen_code_expr(*(exp.expr2));
+    code_seq_concat(&ret, expr2_code);
+    
+    // Apply Op
+    code_seq op_code = gen_code_op((exp.arith_op));
+    code_seq_concat(&ret, op_code);
 
     return ret;
 }
@@ -585,7 +607,7 @@ code_seq gen_code_arith_op(token_t arith_op) {
             code_seq_add_to_end(&do_op, code_add(SP, 1, SP, 0));
             break;
         case minussym:
-            code_seq_add_to_end(&do_op, code_sub(SP, 1, SP, 0));
+            code_seq_add_to_end(&do_op, code_sub(SP, 0, SP, 1));
             break;
         case multsym:
             code_seq_add_to_end(&do_op, code_mul(SP, 1));
@@ -651,10 +673,10 @@ code_seq gen_code_rel_op(token_t rel_op)
 code_seq gen_code_number(number_t num) {
     code_seq ret = code_utils_allocate_stack_space(1);
     unsigned int global_offset = literal_table_lookup(num.text, num.value);
-    printf("gen_code_number: num.text=%s, num.value=%d, global_offset=%u\n", num.text, num.value, global_offset);
+    //printf("gen_code_number: num.text=%s, num.value=%d, global_offset=%u\n", num.text, num.value, global_offset);
 
     code_seq load_cs = code_seq_singleton(code_cpw(SP, 0, GP, global_offset));
-    debug_print("This is the sp value: %d", SP);
+    //debug_print("This is the sp value: %d", SP);
     code_seq_concat(&ret, load_cs);
     return ret;
 }
@@ -663,20 +685,8 @@ code_seq gen_code_logical_not_expr(negated_expr_t negated) {
     // Generate code for the operand
     code_seq operand_code = gen_code_expr(*(negated.expr));
     code_seq ret = code_utils_allocate_stack_space(1);
-    code_seq_concat(&ret, operand_code);
-
-    // Compare with zero and set result
-    code_seq branch_cs = code_seq_singleton(code_beq(SP, 0, 1)); // Branch if SP == 0
-    code_seq_concat(&ret, branch_cs);
-
-    // Set result to 1 if true
-    code_seq true_cs = code_seq_singleton(code_lit(SP, 0, 1));   // Load literal 1
-    code_seq_concat(&ret, true_cs);
-
-    // Set result to 0 if false
-    code_seq false_cs = code_seq_singleton(code_lit(SP, 0, 0));  // Load literal 0
-    code_seq_concat(&ret, false_cs);
-
+    code_seq_add_to_end(&ret, code_neg(SP, 0, GP, 0));
+    
     return ret;
 }
 
